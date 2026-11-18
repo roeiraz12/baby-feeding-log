@@ -1,0 +1,384 @@
+/* extra.css — styles for what the original got from JS libraries
+   (Radix/shadcn Dialog, Input, Label, Button, Switch, Checkbox; sonner; recharts).
+   styles.css (original compiled Tailwind) is untouched; every utility class used by the
+   original markup already exists there (checked with a class-by-class grep).
+   Values below are copied from the original class strings / library CSS and from
+   computed styles measured on the live site. Rules here are unlayered, so they beat
+   Tailwind's @layer utilities on equal elements (e.g. .dlg beats .rounded-3xl). */
+
+/* ------------------------------------------------------------------ Dialog */
+/* overlay: fixed inset-0 z-50 bg-black/80 animate-in fade-in-0 (150ms default) */
+.dlg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: rgb(0 0 0 / .8);
+  --tw-enter-opacity: 0;
+  animation: enter .15s;
+}
+
+/* content: fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x/y-[-50%] gap-4
+   border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95
+   sm:rounded-lg + rounded-3xl (sm:rounded-lg wins at >=640px, as in the original) */
+.dlg {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  display: grid;
+  width: 100%;
+  max-width: var(--container-lg, 32rem);
+  translate: -50% -50%;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
+  padding: 1.5rem;
+  border-radius: calc(var(--radius) + 12px);
+  box-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a;
+  outline: none;
+  --tw-enter-opacity: 0;
+  --tw-enter-scale: .95;
+  animation: enter .2s;
+}
+
+/* header: flex flex-col space-y-1.5 text-center sm:text-left */
+.dlg-header {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+.dlg-header > :not(:last-child) { margin-bottom: .375rem; }
+
+/* title: text-lg font-semibold leading-none tracking-tight */
+.dlg-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.025em;
+}
+
+/* close: absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100
+   focus:ring-2 ring-ring ring-offset-2 ring-offset-background; icon h-4 w-4.
+   Physical `right` on purpose: the original sits at the physical right even in RTL. */
+.dlg-close {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  border-radius: calc(var(--radius) - 4px);
+  opacity: .7;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  transition: opacity .15s cubic-bezier(.4, 0, .2, 1);
+}
+.dlg-close:hover { opacity: 1; }
+.dlg-close:focus { outline: none; }
+.dlg-close:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+.dlg-close svg { display: block; width: 1rem; height: 1rem; }
+
+/* footer: flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 */
+.dlg-footer {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+/* close: animate-out fade-out-0 zoom-out-95 (core.js removes the nodes after 150ms) */
+.dlg-overlay[data-state=closed] { --tw-exit-opacity: 0; animation: exit .15s forwards; }
+.dlg[data-state=closed] { --tw-exit-opacity: 0; --tw-exit-scale: .95; animation: exit .15s forwards; }
+
+@media (width >= 40rem) {
+  .dlg { border-radius: var(--radius); }
+  .dlg-header { text-align: left; }
+  .dlg-footer { flex-direction: row; justify-content: flex-end; }
+}
+
+/* ----------------------------------------------------------- Form controls */
+/* shadcn Input (+ h-12 text-base from the call sites; md:text-sm still applies >=768px,
+   as in the original because both classes survive tailwind-merge) */
+.input {
+  display: flex;
+  width: 100%;
+  height: 3rem;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--input);
+  background-color: transparent;
+  color: inherit;
+  padding: .25rem .75rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  box-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+  transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s;
+  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+}
+.input::placeholder { color: var(--muted-foreground); }
+.input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--ring), 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+}
+.input:disabled { cursor: not-allowed; opacity: .5; }
+@media (width >= 48rem) {
+  .input { font-size: .875rem; line-height: 1.25rem; }
+}
+
+/* shadcn Label: text-sm font-medium leading-none */
+.label {
+  font-size: .875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* shadcn Button variant=default size=lg + w-full */
+.btn-primary-lg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  white-space: nowrap;
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 2rem;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: .875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+  transition: color .15s, background-color .15s, border-color .15s;
+  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+}
+@media (hover: hover) {
+  .btn-primary-lg:hover { background-color: color-mix(in oklab, var(--primary) 90%, transparent); }
+}
+.btn-primary-lg:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--ring), 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+}
+.btn-primary-lg:disabled { pointer-events: none; opacity: .5; cursor: not-allowed; }
+.btn-primary-lg svg { pointer-events: none; width: 1rem; height: 1rem; flex-shrink: 0; }
+
+/* ------------------------------------------------------------------ Switch */
+/* peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent
+   shadow-sm; checked bg-primary, unchecked bg-input.
+   Thumb: block h-4 w-4 rounded-full bg-background shadow-lg transition-transform.
+   NOTE: the original uses physical translate-x-4, so in RTL its checked thumb slides 16px
+   to the right, outside the track. Here it is RTL-aware (slides left, stays inside).
+   For bug-for-bug fidelity replace the [dir=rtl] rule's value with `translate: 1rem 0`. */
+.switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 2.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background-color: var(--input);
+  box-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+  transition: background-color .15s cubic-bezier(.4, 0, .2, 1);
+}
+.switch[data-state=checked] { background-color: var(--primary); }
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+.switch:disabled { cursor: not-allowed; opacity: .5; }
+.switch-thumb {
+  display: block;
+  pointer-events: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background-color: var(--background);
+  box-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a;
+  translate: 0 0;
+  transition: translate .15s cubic-bezier(.4, 0, .2, 1);
+}
+.switch[data-state=checked] .switch-thumb { translate: 1rem 0; }
+[dir=rtl] .switch[data-state=checked] .switch-thumb { translate: -1rem 0; }
+
+/* ---------------------------------------------------------------- Checkbox */
+/* All original classes (grid place-content-center h-7 w-7 rounded-sm border border-primary
+   shadow data-[state=checked]:bg-primary ...) exist in styles.css; this is only a fallback
+   in case the class string is shortened. */
+button.checkbox[data-state=checked] {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+button.checkbox svg { width: 1rem; height: 1rem; }
+
+/* ------------------------------------------------------- Toasts (sonner) */
+/* sonner default light theme, position top-center, gap 14px, width 356px,
+   offset 24px (16px under 600px). The shadcn wrapper's Tailwind classes lose to sonner's
+   unlayered CSS on the live site, so the effective look is plain sonner. Icons are
+   currentColor (near-black #171717), NOT green — measured on the live site. */
+.toaster {
+  --width: 356px;
+  --gap: 14px;
+  --normal-bg: #fff;
+  --normal-border: hsl(0 0% 93%);
+  --normal-text: hsl(0 0% 9%);
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--width);
+  max-width: calc(100% - 32px);
+  height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  outline: 0;
+  z-index: 999999999;
+  direction: rtl;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+@media (max-width: 600px) {
+  .toaster {
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+}
+
+.toast {
+  /* --i = number of newer toasts in front of this one (0 = front) */
+  --i: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 16px;
+  background: var(--normal-bg);
+  border: 1px solid var(--normal-border);
+  color: var(--normal-text);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  z-index: calc(10 - var(--i));
+  transform: translateY(calc(var(--i) * var(--gap))) scale(calc(1 - var(--i) * .05));
+  transition: transform .4s, opacity .4s, height .4s, box-shadow .2s;
+}
+/* core.js inserts the newest toast as the FIRST child; older ones collapse behind it
+   (sonner data-expanded=false: lifted 14px per toast, scaled -5%, content hidden) */
+.toast:nth-child(2) { --i: 1; }
+.toast:nth-child(3) { --i: 2; }
+.toast:nth-child(n+4) { --i: 3; opacity: 0; pointer-events: none; }
+.toast > * { transition: opacity .4s; }
+.toast:not(:first-child) > * { opacity: 0; }
+/* hovering the stack expands it (sonner data-expanded=true) */
+.toaster:hover .toast { transform: translateY(calc(var(--i) * (100% + var(--gap)))); }
+.toaster:hover .toast > * { opacity: 1; }
+.toaster:hover .toast:nth-child(n+4) > * { opacity: 0; }
+/* mount: slide/fade in from above (keyframes, so it does not depend on core.js's rAF
+   setting data-mounted); removal: slide up + fade */
+.toast { animation: toast-in .4s; }
+@keyframes toast-in { from { transform: translateY(-100%); opacity: 0; } }
+.toast[data-removed=true],
+.toaster:hover .toast[data-removed=true] { transform: translateY(-100%); opacity: 0; }
+
+/* [data-icon]: 16x16 flex box; sonner rtl vars resolve to margin-left 4px / margin-right -3px;
+   svg 20x20 with margin-right -1px (measured on the live site) */
+.toast-icon {
+  display: flex;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  align-items: center;
+  margin-left: 4px;
+  margin-right: -3px;
+  color: inherit;
+}
+.toast-icon > * { flex-shrink: 0; }
+.toast-icon svg { width: 20px; height: 20px; margin-left: 0; margin-right: -1px; }
+
+.toast-content { display: flex; flex-direction: column; gap: 2px; }
+.toast-title { font-weight: 500; line-height: 1.5; color: inherit; }
+
+/* [data-button]: dark small button, pushed to the far (left) end in RTL */
+.toast-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--normal-bg);
+  background: var(--normal-text);
+  margin-left: 0;
+  margin-right: auto;
+  cursor: pointer;
+  outline: 0;
+  transition: opacity .4s, box-shadow .2s;
+}
+.toast-action:focus-visible { box-shadow: 0 0 0 2px rgba(0, 0, 0, .4); }
+
+@media (prefers-reduced-motion) {
+  .toast, .toast > * { transition: none !important; animation: none !important; }
+}
+
+/* --------------------------------------------------------- Chart (recharts) */
+/* BarChart 100% x 192px, margin 5, CartesianGrid strokeDasharray 3 3 vertical=false
+   opacity .3 (stroke #ccc), XAxis tickLine/axisLine off fontSize 12 (fill #666),
+   Tooltip cursor {opacity:.1} (fill #ccc), Bar fill var(--pastel-rose) radius [6,6,0,0]. */
+.chart-surface { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart-wrapper { position: relative; width: 100%; height: 100%; }
+.chart-grid line, line.chart-grid {
+  stroke: #ccc;
+  stroke-dasharray: 3 3;
+  fill: none;
+  opacity: .3;
+}
+.chart-tick, .chart-tick text, text.chart-tick {
+  fill: #666;
+  font-size: 12px;
+  stroke: none;
+}
+.chart-bar, rect.chart-bar, path.chart-bar { fill: var(--pastel-rose); }
+.chart-cursor, rect.chart-cursor { fill: #ccc; opacity: .1; pointer-events: none; }
+
+/* .recharts-default-tooltip */
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+  margin: 0;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--foreground);
+}
+.chart-tooltip-label { margin: 0; }
+.chart-tooltip-items { margin: 0; padding: 0; list-style: none; }
+.chart-tooltip-item {
+  display: block;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  color: var(--pastel-rose);
+}

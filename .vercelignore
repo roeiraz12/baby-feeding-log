@@ -1,0 +1,5 @@
+.claude
+CONTRACT.md
+dev-server.mjs
+.env.local
+node_modules

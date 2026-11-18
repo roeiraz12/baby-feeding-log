@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbfaf2">
+  <meta name="apple-mobile-web-app-title" content="יומן תינוק">
+  <meta name="description" content="רישום מהיר בלחיצה אחת לאמא טרייה.">
+  <title>יומן תינוק — הנקה, חיתולים וויטמין D</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="icons/baby-journal-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="extra.css">
+</head>
+<body>
+  <div class="mx-auto min-h-screen w-full max-w-md px-4 pb-28">
+    <div id="page"></div>
+  </div>
+
+  <nav class="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 backdrop-blur">
+    <ul class="mx-auto grid max-w-md grid-cols-3">
+      <li><a data-route="/" href="#/" class="flex flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>יומן</a></li>
+      <li><a data-route="/history" href="#/history" class="flex flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" aria-hidden="true"><path d="M11 5h10"/><path d="M11 12h10"/><path d="M11 19h10"/><path d="M4 4h1v5"/><path d="M4 9h2"/><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"/></svg>היסטוריה</a></li>
+      <li><a data-route="/stats" href="#/stats" class="flex flex-col items-center gap-1 py-3 text-xs font-medium text-muted-foreground transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>סטטיסטיקה</a></li>
+    </ul>
+    <div class="h-[env(safe-area-inset-bottom)]"></div>
+  </nav>
+
+  <div id="alarm"></div>
+  <div id="modal"></div>
+  <ol id="toaster" class="toaster" aria-live="polite"></ol>
+
+  <script src="js/core.js"></script>
+  <script src="js/push.js"></script>
+  <script src="js/today.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/stats.js"></script>
+  <script>App.start(); App.push.startSync();</script>
+</body>
+</html>

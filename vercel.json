@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/cron/daily?slot=summer", "schedule": "0 19 * * *" },
+    { "path": "/api/cron/daily?slot=winter", "schedule": "0 20 * * *" }
+  ],
+  "headers": [
+    {
+      "source": "/diaper-messaging-sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
