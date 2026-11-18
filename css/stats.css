@@ -1,0 +1,116 @@
+/* stats.css — Stats page (#/stats) styles. Owned by the stats agent. */
+
+/* Series colours (bars, swatches, tooltip items). Bars are a little deeper than the pastel
+   so they read against the card; the plain pastel is the fallback without color-mix(). */
+.stats-series-rose { --series-fill: var(--pastel-rose); --series-fg: var(--pastel-rose-fg); }
+.stats-series-sky { --series-fill: var(--pastel-sky); --series-fg: var(--pastel-sky-fg); }
+.stats-series-sand { --series-fill: var(--pastel-sand); --series-fg: var(--pastel-sand-fg); }
+@supports (color: color-mix(in oklch, red, blue)) {
+  .stats-series-sky { --series-fill: color-mix(in oklch, var(--pastel-sky) 78%, var(--pastel-sky-fg)); }
+  .stats-series-sand { --series-fill: color-mix(in oklch, var(--pastel-sand) 70%, var(--pastel-sand-fg)); }
+}
+/* Breast sides: same colours as the Today page buttons. */
+.stats-split-right { --series-fill: var(--pastel-lavender); }
+.stats-split-left { --series-fill: var(--pastel-rose); }
+
+/* ------------------------------------------------------------- goal tiles */
+.stats-progress {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 9999px;
+  background: var(--card);
+  overflow: hidden;
+}
+.stats-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pastel-sky-fg);
+  opacity: .55;
+  transition: width .4s ease;
+}
+.stats-goal-dirty .stats-progress-fill { background: var(--pastel-sand-fg); }
+.stats-goal.is-done .stats-progress-fill { background: var(--pastel-mint-fg); opacity: .6; }
+.stats-goal-hint { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.stats-goal.is-done .stats-goal-hint { color: var(--pastel-mint-fg); }
+.stats-goal-check { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ---------------------------------------------------------- left vs right */
+.stats-split {
+  display: flex;
+  gap: 2px; /* thin separation when both sides are present */
+  height: 12px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--secondary);
+}
+.stats-split-seg { height: 100%; min-width: 0; background: var(--series-fill); }
+.stats-split-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------- legends */
+.stats-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.stats-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--series-fill);
+}
+.stats-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  font-size: .75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+.stats-legend-note { margin-inline-start: auto; }
+
+/* ----------------------------------------------------------- charts */
+/* Overrides the recharts-look base in extra.css with theme tokens. */
+.stats-chart .chart-wrapper { cursor: default; }
+.stats-chart .chart-grid line {
+  stroke: var(--muted-foreground);
+  stroke-dasharray: 3 3;
+  opacity: .25;
+  fill: none;
+}
+.stats-chart text.chart-tick { fill: var(--muted-foreground); font-size: 12px; }
+.stats-chart rect.chart-cursor { fill: var(--foreground); opacity: .06; }
+.stats-chart path.chart-bar { fill: var(--series-fill); }
+.stats-chart-value {
+  fill: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.stats-chart text.stats-chart-value-in {
+  fill: var(--series-fg);
+  font-size: 10px;
+  font-weight: 600;
+}
+.stats-chart .chart-tooltip {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / .08);
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.stats-chart .chart-tooltip-item { color: var(--series-fg); padding-top: 2px; padding-bottom: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-progress-fill { transition: none; }
+  .stats-chart .chart-tooltip { transition: none !important; }
+}

@@ -1,13 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/cron/daily?slot=summer", "schedule": "0 19 * * *" },
-    { "path": "/api/cron/daily?slot=winter", "schedule": "0 20 * * *" }
+    { "path": "/api/cron/daily?slot=summer", "schedule": "0 18 * * *" },
+    { "path": "/api/cron/daily?slot=winter", "schedule": "0 19 * * *" }
   ],
   "headers": [
     {
       "source": "/diaper-messaging-sw.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
     }
   ]
 }

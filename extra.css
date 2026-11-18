@@ -1,10 +1,21 @@
-/* extra.css — styles for what the original got from JS libraries
-   (Radix/shadcn Dialog, Input, Label, Button, Switch, Checkbox; sonner; recharts).
-   styles.css (original compiled Tailwind) is untouched; every utility class used by the
-   original markup already exists there (checked with a class-by-class grep).
-   Values below are copied from the original class strings / library CSS and from
-   computed styles measured on the live site. Rules here are unlayered, so they beat
+/* extra.css — shared styles: font, nav, dialog, form controls, switch, checkbox,
+   toasts, chart. styles.css (compiled Tailwind v4) is never edited and contains only
+   the utility classes that were compiled into it — anything else goes here (shared)
+   or in css/<page>.css (page-owned). Rules here are unlayered, so they beat
    Tailwind's @layer utilities on equal elements (e.g. .dlg beats .rounded-3xl). */
+
+/* ------------------------------------------------------------------- Font */
+/* Rubik (Google Fonts, linked in index.html) with the previous system stack as fallback.
+   html/body read --default-font-family → --font-sans from styles.css. */
+:root {
+  --font-sans: "Rubik", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+body { font-family: var(--font-sans); }
+
+/* ------------------------------------------------------------- Bottom nav */
+/* grid-cols-4 is not in the compiled styles.css */
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.nav-tabs a { white-space: nowrap; }
 
 /* ------------------------------------------------------------------ Dialog */
 /* overlay: fixed inset-0 z-50 bg-black/80 animate-in fade-in-0 (150ms default) */
@@ -42,11 +53,13 @@
   animation: enter .2s;
 }
 
-/* header: flex flex-col space-y-1.5 text-center sm:text-left */
+/* header: centered on mobile, start-aligned (right in RTL) from 40rem.
+   Inline padding keeps the title clear of the close button. */
 .dlg-header {
   display: flex;
   flex-direction: column;
   text-align: center;
+  padding-inline: 1.5rem;
 }
 .dlg-header > :not(:last-child) { margin-bottom: .375rem; }
 
@@ -58,13 +71,17 @@
   letter-spacing: -.025em;
 }
 
-/* close: absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100
-   focus:ring-2 ring-ring ring-offset-2 ring-offset-background; icon h-4 w-4.
-   Physical `right` on purpose: the original sits at the physical right even in RTL. */
+/* close: top corner on the inline-end side (the LEFT in RTL); icon h-4 w-4 with a
+   larger invisible hit area. */
 .dlg-close {
   position: absolute;
-  right: 1rem;
+  inset-inline-end: 1rem;
   top: 1rem;
+  display: grid;
+  place-items: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  margin: -.25rem;
   border-radius: calc(var(--radius) - 4px);
   opacity: .7;
   cursor: pointer;
@@ -80,10 +97,12 @@
 }
 .dlg-close svg { display: block; width: 1rem; height: 1rem; }
 
-/* footer: flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 */
+/* footer: stacked on mobile (primary action at the bottom); a row from 40rem with the
+   buttons at the inline end (flex-end follows direction, so the LEFT in RTL). */
 .dlg-footer {
   display: flex;
   flex-direction: column-reverse;
+  gap: .5rem;
 }
 
 /* close: animate-out fade-out-0 zoom-out-95 (core.js removes the nodes after 150ms) */
@@ -92,7 +111,7 @@
 
 @media (width >= 40rem) {
   .dlg { border-radius: var(--radius); }
-  .dlg-header { text-align: left; }
+  .dlg-header { text-align: start; padding-inline: 0 1.5rem; }
   .dlg-footer { flex-direction: row; justify-content: flex-end; }
 }
 
@@ -237,7 +256,7 @@ button.checkbox svg { width: 1rem; height: 1rem; }
   outline: 0;
   z-index: 999999999;
   direction: rtl;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family: "Rubik", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 @media (max-width: 600px) {
   .toaster {

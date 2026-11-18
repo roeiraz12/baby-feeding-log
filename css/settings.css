@@ -1,0 +1,218 @@
+/* settings.css — Settings page (#/settings) styles. Owned by the settings agent.
+   Plain CSS (styles.css is compiled Tailwind and only has the classes compiled into it).
+   Everything is prefixed st-. Theme tokens come from styles.css. */
+
+/* ------------------------------------------------------------------ cards */
+.st-card {
+  display: flex;
+  flex-direction: column;
+  gap: .875rem;
+  padding: 1.125rem 1rem;
+  border-radius: 1.5rem;
+  background: var(--card);
+  color: var(--card-foreground, var(--foreground));
+  box-shadow: 0 1px 3px 0 #0000000f, 0 1px 2px -1px #0000000f;
+}
+.st-rose { background: color-mix(in oklab, var(--pastel-rose) 45%, var(--card)); }
+.st-sky { background: color-mix(in oklab, var(--pastel-sky) 45%, var(--card)); }
+.st-sand { background: color-mix(in oklab, var(--pastel-sand) 50%, var(--card)); }
+.st-lavender { background: color-mix(in oklab, var(--pastel-lavender) 45%, var(--card)); }
+
+.st-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: .025em;
+  color: var(--muted-foreground);
+}
+.st-title svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+
+.st-text { font-size: .9375rem; line-height: 1.5; }
+.st-label { font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.st-hint { font-size: .8125rem; line-height: 1.45; color: var(--muted-foreground); }
+.st-note {
+  font-size: .875rem;
+  line-height: 1.45;
+  padding: .625rem .75rem;
+  border-radius: 1rem;
+  background: color-mix(in oklab, var(--pastel-sand) 70%, var(--card));
+  color: var(--pastel-sand-fg);
+}
+
+/* ---------------------------------------------------------------- stepper */
+.st-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem 0;
+}
+.st-field + .st-field { border-top: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent); padding-top: .875rem; }
+.st-field-text { min-width: 0; flex: 1 1 auto; }
+.st-field-text .st-hint { margin-top: .125rem; }
+
+.st-stepper {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  flex-shrink: 0;
+  padding: .25rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--card) 85%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+.st-step {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 #00000014;
+  transition: transform .1s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.st-step svg { width: 1.125rem; height: 1.125rem; }
+.st-step:active { transform: scale(.92); }
+.st-step:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+.st-step:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.st-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.5rem;
+  text-align: center;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.st-value-main { font-size: 1.0625rem; font-weight: 700; }
+.st-value-unit { font-size: .6875rem; color: var(--muted-foreground); }
+/* the feed interval: label above, a full-width stepper below (long values like "שעתיים ו-45 דקות") */
+.st-field-stack { flex-direction: column; align-items: stretch; }
+.st-field-stack .st-stepper { justify-content: space-between; }
+.st-field-stack .st-value { flex: 1 1 auto; }
+
+/* ---------------------------------------------------------------- buttons */
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  min-height: 3rem;
+  padding: .625rem 1rem;
+  border-radius: 1rem;
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .1s, background-color .15s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.st-btn svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+.st-btn:active { transform: scale(.97); }
+.st-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.st-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.st-btn-primary { background: var(--primary); color: var(--primary-foreground); box-shadow: 0 1px 3px 0 #0000001a; }
+.st-btn-soft {
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+.st-btn-danger {
+  background: color-mix(in oklab, var(--destructive, #dc2626) 12%, var(--background));
+  color: var(--destructive, #b91c1c);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive, #dc2626) 35%, transparent);
+}
+.st-btn-danger.st-armed { background: var(--destructive, #dc2626); color: var(--destructive-foreground, #fff); }
+.st-btn-ghost-danger { background: transparent; color: var(--destructive, #b91c1c); min-height: 2.75rem; font-weight: 500; }
+.st-flip { transform: scaleX(-1); }
+
+.st-actions { display: flex; flex-direction: column; gap: .5rem; }
+.st-actions-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.st-actions-2 .st-btn { padding-inline: .5rem; }
+
+/* ------------------------------------------------------------- sharing card */
+.st-join { display: flex; flex-direction: column; gap: .5rem; margin-top: .375rem; padding-top: .875rem;
+  border-top: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent); }
+.st-join-row { display: flex; gap: .5rem; }
+.st-code-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 3rem;
+  background: var(--background);
+  font-size: 1.25rem !important;
+  font-weight: 600;
+  letter-spacing: .25em;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 1rem;
+}
+.st-code-input::placeholder { letter-spacing: .2em; font-weight: 400; opacity: .6; }
+.st-join-btn { width: auto; flex-shrink: 0; padding-inline: 1.125rem; }
+
+.st-linked { display: flex; align-items: flex-start; gap: .75rem; }
+.st-linked-title { font-size: 1.0625rem; font-weight: 700; }
+.st-dot {
+  flex-shrink: 0;
+  width: .75rem;
+  height: .75rem;
+  margin-top: .4rem;
+  border-radius: 9999px;
+  background: oklch(68% .15 155);
+  box-shadow: 0 0 0 4px color-mix(in oklab, oklch(68% .15 155) 22%, transparent);
+}
+.st-dot.st-dot-bad { background: oklch(72% .14 70); box-shadow: 0 0 0 4px color-mix(in oklab, oklch(72% .14 70) 25%, transparent); }
+
+/* ------------------------------------------------------------------ dialogs */
+.st-dlg { display: flex; flex-direction: column; gap: .875rem; }
+.st-dlg-text { font-size: .9375rem; line-height: 1.55; }
+.st-choice { display: flex; flex-direction: column; gap: .375rem; }
+.st-warn {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+  padding: .625rem .75rem;
+  border-radius: .875rem;
+  background: color-mix(in oklab, var(--pastel-sand) 65%, var(--background));
+  color: var(--pastel-sand-fg);
+  font-size: .8125rem;
+  line-height: 1.45;
+}
+.st-warn-icon { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: .125rem; }
+.st-error { font-size: .875rem; font-weight: 500; color: var(--destructive, #b91c1c); }
+.st-error[hidden] { display: none; }
+
+.st-code-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .25rem;
+  padding: 1rem .75rem;
+  border-radius: 1.25rem;
+  background: color-mix(in oklab, var(--pastel-lavender) 45%, var(--background));
+}
+.st-code {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--pastel-lavender-fg);
+  user-select: all;
+  -webkit-user-select: all;
+}
+.st-code.st-expired { opacity: .35; text-decoration: line-through; }
+.st-code-sm { font-size: 1.5rem; text-align: center; }
+.st-countdown { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion) {
+  .st-step, .st-btn { transition: none; }
+}

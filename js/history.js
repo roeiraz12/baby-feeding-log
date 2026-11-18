@@ -1,6 +1,7 @@
 /* History page — port of history-*.js (component I + edit dialog F). */
 (function () {
   'use strict';
+  var App = window.App;
 
   // Merged (tailwind-merge) class strings as rendered by the original.
   var CLS = {
@@ -127,7 +128,11 @@
     });
   }
 
-  function render(root) {
+  // "load more": days (with events) rendered at first / added per click
+  var INITIAL_DAYS = 3;
+  var MORE_DAYS = 7;
+
+  function render(root, state) {
     var events = App.store.events()
       .filter(function (e) { return e.type !== 'sleep'; })
       .sort(function (a, b) { return b.timestamp - a.timestamp; });
@@ -148,9 +153,14 @@
       wrap.appendChild(el('div', CLS.empty, 'עוד לא נרשם כלום. עברי ללשונית היומן כדי לרשום את האירוע הראשון.'));
     }
 
-    groups.forEach(function (list, key) {
+    var keys = Array.from(groups.keys());
+    var shown = keys.slice(0, state.days);
+    shown.forEach(function (key, i) {
+      var list = groups.get(key);
       var sec = el('section', CLS.section);
-      sec.appendChild(el('h2', CLS.h2, dayHeading(key)));
+      var h2 = el('h2', CLS.h2, dayHeading(key));
+      if (i === state.focusIndex) h2.tabIndex = -1;
+      sec.appendChild(h2);
       var ul = el('ul', CLS.ul);
       list.forEach(function (e) {
         var li = el('li');
@@ -189,14 +199,41 @@
       wrap.appendChild(sec);
     });
 
+    var rest = keys.length - shown.length;
+    if (rest > 0) {
+      var more = el('button', 'history-more');
+      more.type = 'button';
+      more.setAttribute('data-history-more', '');
+      more.appendChild(document.createTextNode('הצג עוד '));
+      more.appendChild(el('span', 'history-more-hint', '(' + (rest === 1 ? 'יום אחד נוסף' : rest + ' ימים נוספים') + ')'));
+      more.addEventListener('click', function () {
+        state.focusIndex = shown.length; // first newly revealed day
+        state.days = shown.length + MORE_DAYS;
+        render(root, state);
+      });
+      wrap.appendChild(more);
+    }
+
+    // keep focus on "load more" across store re-renders
+    var hadMoreFocus = !!(document.activeElement && document.activeElement.hasAttribute &&
+      document.activeElement.hasAttribute('data-history-more') && root.contains(document.activeElement));
     root.replaceChildren(wrap);
+    if (state.focusIndex != null) {
+      var target = wrap.querySelector('h2[tabindex="-1"]');
+      state.focusIndex = null;
+      if (target) target.focus();
+    } else if (hadMoreFocus) {
+      var b = wrap.querySelector('[data-history-more]');
+      if (b) b.focus({ preventScroll: true });
+    }
   }
 
   App.registerPage('/history', {
     title: 'היסטוריה — יומן תינוק',
     mount: function (root) {
-      render(root);
-      var unsub = App.store.subscribe(function () { render(root); });
+      var state = { days: INITIAL_DAYS, focusIndex: null }; // kept while mounted
+      render(root, state);
+      var unsub = App.store.subscribe(function () { render(root, state); });
       return function () { unsub(); if (openDlg) openDlg.close(); };
     }
   });

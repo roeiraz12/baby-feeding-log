@@ -15,6 +15,14 @@
     { key: 'right', name: 'ימין', cls: 'bg-[var(--pastel-lavender)] text-[var(--pastel-lavender-fg)]' },
     { key: 'left', name: 'שמאל', cls: 'bg-[var(--pastel-rose)] text-[var(--pastel-rose-fg)]' }
   ];
+  var GOAL_NAMES = { wet: 'פיפי', dirty: 'קקי' };
+  var UNDO_MS = 6000;
+
+  function minutesPhrase(min) {
+    if (min < 1) return 'פחות מדקה';
+    if (min === 1) return 'דקה';
+    return min + ' דקות';
+  }
 
   function mount(el) {
     var draft = ''; // N state: kept across dialog close, cleared on save
@@ -22,23 +30,38 @@
       '<div class="space-y-6">' +
         '<header class="pt-2"><h1 class="text-3xl font-bold tracking-tight">היום</h1><p class="text-sm text-muted-foreground">לחצי פעם אחת לרישום. זהו.</p></header>' +
         '<div class="border text-card-foreground shadow grid grid-cols-3 gap-2 rounded-3xl border-none bg-secondary/60 p-4 text-center">' +
-          [['nursing', 'הנקות'], ['wet', 'פיפי'], ['dirty', 'קקי']].map(function (c) {
-            return '<div><div class="text-lg font-bold" data-count="' + c[0] + '">–</div><div class="text-[11px] uppercase tracking-wide text-muted-foreground">' + c[1] + '</div></div>';
+          '<div class="today-count"><div class="text-lg font-bold" data-count="nursing">–</div><div class="text-[11px] uppercase tracking-wide text-muted-foreground">הנקות</div></div>' +
+          ['wet', 'dirty'].map(function (k) {
+            return '<div class="today-count today-goal" data-goal="' + k + '">' +
+              '<span class="sr-only" data-goal-sr></span>' +
+              '<div class="today-goal-num text-lg font-bold" dir="ltr" aria-hidden="true">' +
+                '<span data-count="' + k + '">–</span><span class="today-goal-of">/<span data-goal-target></span></span>' +
+                '<span class="today-goal-check">' + App.icon('check', '') + '</span>' +
+              '</div>' +
+              '<div class="text-[11px] uppercase tracking-wide text-muted-foreground" aria-hidden="true">' + GOAL_NAMES[k] + '</div>' +
+              '<div class="today-goal-bar" aria-hidden="true"><span data-goal-fill></span></div>' +
+            '</div>';
           }).join('') +
         '</div>' +
         '<label for="vitamin-d" data-slot="vitamin" class="flex min-h-14 cursor-pointer items-center gap-3 border-b border-border py-3 font-semibold">' +
           '<button type="button" role="checkbox" aria-checked="false" data-state="unchecked" value="on" class="' + CHECKBOX + '" id="vitamin-d"></button><span>ויטמין D</span>' +
         '</label>' +
-        '<div data-slot="banner" class="flex items-center justify-center gap-2 rounded-2xl bg-[var(--pastel-rose)]/50 py-2 text-sm font-medium">' +
-          App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span>' +
+        '<div data-slot="banner" class="feed-banner" data-state="countdown">' +
+          '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span></div>' +
+          '<div class="feed-progress" role="progressbar" aria-label="הזמן שעבר מתחילת ההנקה האחרונה" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
+            '<span class="feed-progress-fill" data-slot="banner-fill"></span>' +
+          '</div>' +
         '</div>' +
         '<section class="space-y-3">' +
           '<h2 class="' + H2 + '">' + App.icon('baby', 'h-4 w-4') + ' הנקה</h2>' +
           '<div class="grid grid-cols-2 gap-3">' +
             SIDES.map(function (s) {
-              return '<button type="button" data-side="' + s.key + '" class="' + BIG_BTN + ' ' + s.cls + '" aria-label="הנקה ' + s.name + '">' + s.name + '<span class="text-xs font-normal opacity-70">שד</span></button>';
+              return '<button type="button" data-side="' + s.key + '" class="' + BIG_BTN + ' ' + s.cls + '" aria-pressed="false" aria-describedby="nursing-desc-' + s.key + '">' +
+                '<span class="sr-only">הנקה </span>' + s.name +
+                '<span class="text-xs font-normal opacity-70" aria-hidden="true">שד</span></button>';
             }).join('') +
           '</div>' +
+          SIDES.map(function (s) { return '<span id="nursing-desc-' + s.key + '" class="sr-only"></span>'; }).join('') +
         '</section>' +
         '<section class="space-y-3">' +
           '<h2 class="' + H2 + '">' + App.icon('droplets', 'h-4 w-4') + ' חיתול</h2>' +
@@ -55,11 +78,21 @@
 
     var q = function (s) { return root.querySelector(s); };
     var counts = { nursing: q('[data-count=nursing]'), wet: q('[data-count=wet]'), dirty: q('[data-count=dirty]') };
+    var goalEls = {};
+    ['wet', 'dirty'].forEach(function (k) {
+      var c = q('[data-goal=' + k + ']');
+      goalEls[k] = { cell: c, sr: c.querySelector('[data-goal-sr]'), target: c.querySelector('[data-goal-target]'), fill: c.querySelector('[data-goal-fill]') };
+    });
     var vitamin = q('[data-slot=vitamin]');
     var banner = q('[data-slot=banner]');
     var bannerText = q('[data-slot=banner-text]');
-    var sideBtns = {};
-    SIDES.forEach(function (s) { sideBtns[s.key] = q('[data-side=' + s.key + ']'); });
+    var bannerBar = q('[role=progressbar]');
+    var bannerFill = q('[data-slot=banner-fill]');
+    var sideBtns = {}, sideDesc = {};
+    SIDES.forEach(function (s) {
+      sideBtns[s.key] = q('[data-side=' + s.key + ']');
+      sideDesc[s.key] = root.querySelector('#nursing-desc-' + s.key);
+    });
 
     // conditional nodes: swap with a placeholder comment so position is kept
     function slot(node) {
@@ -72,12 +105,33 @@
     var showVitamin = slot(vitamin);
     var showBanner = slot(banner);
 
-    function U(evt, label) {
-      var e = App.store.add(evt);
-      App.toast(('נרשם: ' + label + ' בשעה ' + Q(e.timestamp)), { type: 'success' });
+    function setText(n, v) { if (n.textContent !== v) n.textContent = v; }
+    function setAttr(n, a, v) { if (n.getAttribute(a) !== v) n.setAttribute(a, v); }
+
+    // Success toast with a one-shot "ביטול" action
+    function undoToast(msg, undo) {
+      var used = false;
+      App.toast(msg, {
+        type: 'success',
+        duration: UNDO_MS,
+        action: {
+          label: 'ביטול',
+          onClick: function () {
+            if (used) return;
+            used = true;
+            var res = undo(); // store writes re-render via subscribe
+            App.toast(typeof res === 'string' ? res : 'בוטל');
+          }
+        }
+      });
     }
 
-    var bannerMode = null, timerState = {};
+    function U(evt, label) {
+      var e = App.store.add(evt);
+      undoToast('נרשם: ' + label + ' בשעה ' + Q(e.timestamp), function () { App.store.remove(e.id); });
+    }
+
+    var bannerMode = null, timerState = {}, descState = {};
     function update() {
       var T = Date.now();
       var events = App.store.events();
@@ -89,30 +143,48 @@
         wet: z.filter(function (e) { return e.type === 'diaper' && e.subtype === 'wet'; }).length,
         dirty: z.filter(function (e) { return e.type === 'diaper' && e.subtype === 'dirty'; }).length
       };
-      Object.keys(counts).forEach(function (k) {
-        var v = String(vals[k]);
-        if (counts[k].textContent !== v) counts[k].textContent = v;
+      Object.keys(counts).forEach(function (k) { setText(counts[k], String(vals[k])); });
+
+      // diaper goals: X/Y + thin bar, mint "done" state when reached
+      var goals = App.goals();
+      ['wet', 'dirty'].forEach(function (k) {
+        var g = goalEls[k], goal = goals[k], v = vals[k], done = v >= goal;
+        setText(g.target, String(goal));
+        g.fill.style.width = Math.min(100, Math.round(v / goal * 100)) + '%';
+        setAttr(g.cell, 'data-done', done ? 'true' : 'false');
+        setText(g.sr, GOAL_NAMES[k] + ': ' + v + ' מתוך ' + goal + (done ? ', היעד הושג' : ''));
       });
 
-      // vitamin D: hidden once marked for today
-      showVitamin(!App.isToday(window.localStorage.getItem(App.KEYS.vitaminDay), T));
+      // vitamin D: hidden once marked for today (on this device or a synced one)
+      showVitamin(!App.vitaminDoneToday(T));
 
-      // next-feed banner
+      // next-feed banner + progress bar (last feeding start → start + interval)
       var L = App.lastNursing(events);
-      var R = L ? L + App.FEED_INTERVAL - T : 0;
+      var interval = App.feedIntervalMs();
+      var R = L ? L + interval - T : 0;
       showBanner(L > 0);
       if (L > 0) {
         var mode = R > 0 ? 'countdown' : 'overdue';
-        if (mode !== bannerMode) {
+        var overdueText = App.feedOverdueText();
+        if (mode !== bannerMode || (mode === 'overdue' && bannerText.textContent !== overdueText)) {
           bannerMode = mode;
+          banner.setAttribute('data-state', mode);
           bannerText.innerHTML = mode === 'countdown'
-            ? 'הנקה הבאה בעוד <span class="font-mono tabular-nums"></span>'
-            : 'עברו 3 שעות מההנקה האחרונה';
+            ? 'הנקה הבאה בעוד <span class="font-mono tabular-nums" dir="ltr"></span>'
+            : App.esc(overdueText);
         }
-        if (mode === 'countdown') {
-          var t = App.fmtClock(R), sp = bannerText.firstElementChild;
-          if (sp.textContent !== t) sp.textContent = t;
+        if (mode === 'countdown') setText(bannerText.firstElementChild, App.fmtClock(R));
+        var frac = mode === 'overdue' ? 1 : Math.max(0, Math.min(1, (T - L) / interval));
+        bannerFill.style.width = (frac * 100).toFixed(2) + '%';
+        var pct = String(Math.floor(frac * 100));
+        if (bannerBar.getAttribute('aria-valuenow') !== pct) {
+          bannerBar.setAttribute('aria-valuenow', pct);
+          bannerBar.setAttribute('aria-valuetext', mode === 'overdue'
+            ? overdueText
+            : 'עברו ' + pct + '% מהזמן עד ההנקה הבאה');
         }
+      } else {
+        bannerMode = null;
       }
 
       // nursing buttons
@@ -121,21 +193,27 @@
         var isActive = !!active && active.subtype === s.key;
         var disabled = !!active && !isActive;
         if (b.disabled !== disabled) b.disabled = disabled;
+        setAttr(b, 'aria-pressed', isActive ? 'true' : 'false');
         var span = b.lastElementChild;
+        var elapsed = isActive ? Math.min(App.NURSING_MAX, T - active.timestamp) : 0;
         if (isActive) {
-          var txt = App.fmtClock(Math.min(App.NURSING_MAX, T - active.timestamp));
+          var txt = App.fmtClock(elapsed);
           if (timerState[s.key] !== 'timer') {
             timerState[s.key] = 'timer';
             span.className = 'font-mono text-2xl tabular-nums';
             span.setAttribute('dir', 'ltr');
           }
-          if (span.textContent !== txt) span.textContent = txt;
+          setText(span, txt);
         } else if (timerState[s.key] !== 'idle') {
           timerState[s.key] = 'idle';
           span.className = 'text-xs font-normal opacity-70';
           span.removeAttribute('dir');
           span.textContent = 'שד';
         }
+        // description changes at most once a minute (and is not a live region)
+        var desc = isActive ? 'פועלת ' + minutesPhrase(Math.floor(elapsed / 60000)) + ', לחצי לסיום'
+          : disabled ? 'הצד השני פועל כרגע' : '';
+        if (descState[s.key] !== desc) { descState[s.key] = desc; sideDesc[s.key].textContent = desc; }
       });
     }
 
@@ -145,17 +223,45 @@
     q('#vitamin-d').addEventListener('click', function (e) {
       e.preventDefault();
       var t = Date.now(), n = App.dayKey(t);
-      App.store.add(App.vitaminEvent(t));
+      var prevKey = window.localStorage.getItem(App.KEYS.vitaminDay);
+      var ev = App.store.add(App.vitaminEvent(t));
       window.localStorage.setItem(App.KEYS.vitaminDay, n);
-      App.toast('ויטמין D סומן להיום', { type: 'success' });
+      undoToast('ויטמין D סומן להיום', function () {
+        App.store.remove(ev.id);
+        // vitaminDoneToday() is true while the day key is today → put back the previous value
+        if (prevKey == null || prevKey === n) window.localStorage.removeItem(App.KEYS.vitaminDay);
+        else window.localStorage.setItem(App.KEYS.vitaminDay, prevKey);
+        App.store.reload();
+      });
       update();
     });
 
     SIDES.forEach(function (s) {
       sideBtns[s.key].addEventListener('click', function () {
+        var before = App.store.activeNursing();
         var r = App.store.toggleNursing(s.key);
-        if (r === 'started') App.toast('הנקה — ' + s.name + ' התחילה בשעה ' + Q(Date.now()), { type: 'success' });
-        if (r === 'ended') App.toast('הנקה — ' + s.name + ' הסתיימה', { type: 'success' });
+        if (r === 'started') {
+          var started = App.store.activeNursing();
+          var id = started && started.id;
+          undoToast('הנקה — ' + s.name + ' התחילה בשעה ' + Q(Date.now()), function () {
+            if (!id) return;
+            if (window.localStorage.getItem(App.KEYS.active) === id) window.localStorage.removeItem(App.KEYS.active);
+            App.store.remove(id);
+          });
+        } else if (r === 'ended') {
+          var ended = before;
+          undoToast('הנקה — ' + s.name + ' הסתיימה', function () {
+            if (!ended || !App.store.events().some(function (e) { return e.id === ended.id; })) return 'לא ניתן לבטל';
+            var now = Date.now();
+            if (now >= ended.timestamp + App.NURSING_MAX) return 'עברו 15 דקות, ההנקה נשארה סגורה';
+            var other = App.store.activeNursing();
+            if (other && other.id !== ended.id) return 'הנקה אחרת פועלת, לא ניתן לבטל';
+            // reopen: JSON drops the undefined fields, so the side becomes open again
+            App.store.edit(ended.id, { endTimestamp: undefined, durationMs: undefined });
+            window.localStorage.setItem(App.KEYS.active, ended.id);
+            App.store.reload();
+          });
+        }
       });
     });
 

@@ -1,0 +1,68 @@
+/* today.css — Today page (#/) and History page styles. Owned by the today agent. */
+
+/* ---- counter card: diaper goals ---- */
+.today-count { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.today-goal-num { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; }
+.today-goal-of { font-size: .8125rem; font-weight: 500; color: var(--muted-foreground); }
+.today-goal-check {
+  display: none; align-self: center; margin-inline-start: 4px;
+  width: 1rem; height: 1rem; border-radius: 9999px;
+  background: var(--pastel-mint); color: var(--pastel-mint-fg);
+  place-items: center;
+}
+.today-goal-check svg { width: .7rem; height: .7rem; stroke-width: 3; }
+.today-goal[data-done=true] .today-goal-check { display: inline-grid; }
+.today-goal-bar {
+  width: 100%; max-width: 4.5rem; height: 4px; margin-top: 6px;
+  border-radius: 9999px; overflow: hidden;
+  background: color-mix(in oklab, var(--muted-foreground) 18%, transparent);
+}
+.today-goal-bar > span {
+  display: block; height: 100%; width: 0; border-radius: inherit;
+  background: var(--pastel-lavender-fg); opacity: .55;
+  transition: width .4s ease, background-color .4s ease;
+}
+.today-goal[data-goal=wet] .today-goal-bar > span { background: var(--pastel-sky-fg); }
+.today-goal[data-goal=dirty] .today-goal-bar > span { background: var(--pastel-sand-fg); }
+.today-goal[data-done=true] .today-goal-bar > span { background: var(--pastel-mint-fg); opacity: .7; }
+
+/* ---- next-feed banner + progress bar ---- */
+.feed-banner {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 14px 12px; border-radius: 1rem;
+  font-size: .875rem; line-height: 1.25rem; font-weight: 500;
+  background: color-mix(in oklab, var(--pastel-lavender) 55%, transparent);
+  color: var(--foreground);
+  transition: background-color .4s ease;
+}
+.feed-banner-row { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.feed-banner-row svg { flex-shrink: 0; color: var(--pastel-lavender-fg); }
+.feed-progress {
+  position: relative; height: 8px; border-radius: 9999px; overflow: hidden;
+  background: color-mix(in oklab, var(--pastel-lavender-fg) 14%, var(--background));
+}
+.feed-progress-fill {
+  display: block; height: 100%; width: 0; border-radius: inherit;
+  background: color-mix(in oklab, var(--pastel-lavender-fg) 60%, var(--pastel-lavender));
+  transition: width 1s linear, background-color .4s ease;
+}
+.feed-banner[data-state=overdue] { background: color-mix(in oklab, var(--pastel-rose) 75%, transparent); }
+.feed-banner[data-state=overdue] .feed-banner-row svg { color: var(--pastel-rose-fg); }
+.feed-banner[data-state=overdue] .feed-progress { background: color-mix(in oklab, var(--pastel-rose-fg) 14%, var(--background)); }
+.feed-banner[data-state=overdue] .feed-progress-fill { background: color-mix(in oklab, var(--pastel-rose-fg) 65%, var(--pastel-rose)); }
+
+/* ---- history: load more ---- */
+.history-more {
+  display: flex; width: 100%; min-height: 3rem; align-items: center; justify-content: center; gap: 6px;
+  border-radius: 1rem; border: 2px dashed var(--border); background: transparent;
+  font-weight: 600; color: var(--muted-foreground); cursor: pointer;
+  transition: background-color .2s ease;
+}
+.history-more:hover { background: var(--secondary); }
+.history-more:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.history-more-hint { font-weight: 400; font-size: .75rem; }
+section > h2[tabindex="-1"]:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-banner, .feed-progress-fill, .today-goal-bar > span, .history-more { transition: none; }
+}

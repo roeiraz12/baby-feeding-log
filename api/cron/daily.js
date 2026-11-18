@@ -1,11 +1,12 @@
 import webpush from "web-push";
 import { send } from "../../lib/http.js";
-import { isShabbat, dayKey, israelHour, warnings } from "../../lib/diapers.js";
+import { isShabbat, dayKey, israelHour, warnings, EVENING_NOTIFY_HOUR } from "../../lib/diapers.js";
 import { getDevice, saveDevice, deleteDevice, listDeviceIds } from "../../lib/store.js";
 
-// Runs from Vercel Cron at 19:00 and 20:00 UTC (= 22:00 Israel in summer / winter).
-// Sends once per device per day, only from 22:00 Israel time, never on Shabbat,
-// and only when today's pee < 6 or poop < 3.
+// Runs from Vercel Cron at 18:00 and 19:00 UTC (= 21:00 Israel in summer / winter).
+// Sends once per device per day, only from EVENING_NOTIFY_HOUR (21:00) Israel time,
+// never on Shabbat, and only when today's pee / poop are below the device's goals
+// (sent by the app; defaults 6 / 3).
 // ?force=1 skips the hour/Shabbat checks (for testing; still needs CRON_SECRET).
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
   const force = new URL(req.url, "http://x").searchParams.get("force") === "1";
   const now = Date.now();
   const today = dayKey(now);
-  if (!force && israelHour(now) < 22) return send(res, 200, { skipped: "before 22:00 Israel time" });
+  if (!force && israelHour(now) < EVENING_NOTIFY_HOUR) return send(res, 200, { skipped: `before ${EVENING_NOTIFY_HOUR}:00 Israel time` });
   if (!force && isShabbat(now)) return send(res, 200, { skipped: "shabbat" });
 
   const result = { sent: 0, ok: 0, removed: 0, failed: 0 };
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
     if (d.lastSentDay === today && !force) continue;
     // Counts are only from today if the app synced today; otherwise nothing was logged.
     const fresh = d.day === today;
-    const lines = warnings(fresh ? d.wet : 0, fresh ? d.dirty : 0);
+    const lines = warnings(fresh ? d.wet : 0, fresh ? d.dirty : 0, { wet: d.wetGoal, dirty: d.dirtyGoal });
     if (lines.length) {
       result.sent++;
       try {
