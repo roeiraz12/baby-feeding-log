@@ -83,7 +83,15 @@
       var c = q('[data-goal=' + k + ']');
       goalEls[k] = { cell: c, sr: c.querySelector('[data-goal-sr]'), target: c.querySelector('[data-goal-target]'), fill: c.querySelector('[data-goal-fill]') };
     });
-    var vitamin = q('[data-slot=vitamin]');
+    var vitBtn = q('#vitamin-d');
+    // today's vitamin-D events (fixed id vitamin-d-YYYY-MM-DD, or an older custom 'ויטמין D' note)
+    function vitaminEventsToday(events, t) {
+      var day = App.dayKey(t);
+      return events.filter(function (x) {
+        return x.id === 'vitamin-d-' + day ||
+          (x.type === 'custom' && x.note === 'ויטמין D' && App.dayKey(x.timestamp) === day);
+      });
+    }
     var banner = q('[data-slot=banner]');
     var bannerText = q('[data-slot=banner-text]');
     var bannerBar = q('[role=progressbar]');
@@ -102,7 +110,6 @@
         else if (!on && node.parentNode) node.parentNode.replaceChild(ph, node);
       };
     }
-    var showVitamin = slot(vitamin);
     var showBanner = slot(banner);
 
     function setText(n, v) { if (n.textContent !== v) n.textContent = v; }
@@ -155,8 +162,14 @@
         setText(g.sr, GOAL_NAMES[k] + ': ' + v + ' מתוך ' + goal + (done ? ', היעד הושג' : ''));
       });
 
-      // vitamin D: hidden once marked for today (on this device or a synced one)
-      showVitamin(!App.vitaminDoneToday(T));
+      // vitamin D: always visible; checked (✓) when today's vitamin-D event exists.
+      // Events are the source of truth (they sync between parents), not the local day key.
+      var vitDone = vitaminEventsToday(events, T).length > 0;
+      if (vitBtn.getAttribute('data-state') !== (vitDone ? 'checked' : 'unchecked')) {
+        vitBtn.setAttribute('data-state', vitDone ? 'checked' : 'unchecked');
+        vitBtn.setAttribute('aria-checked', vitDone ? 'true' : 'false');
+        vitBtn.innerHTML = vitDone ? App.icon('check', 'h-4 w-4') : '';
+      }
 
       // next-feed banner + progress bar (last feeding start → start + interval)
       var L = App.lastNursing(events);
@@ -220,19 +233,28 @@
     // --- interactions ---
     // Radix Checkbox ignores Enter (only Space/click toggles)
     q('#vitamin-d').addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
-    q('#vitamin-d').addEventListener('click', function (e) {
-      e.preventDefault();
-      var t = Date.now(), n = App.dayKey(t);
-      var prevKey = window.localStorage.getItem(App.KEYS.vitaminDay);
+    // un-marking removes every vitamin-D event of today and the local day key
+    function clearVitaminToday(t) {
+      vitaminEventsToday(App.store.events(), t).forEach(function (x) { App.store.remove(x.id); });
+      window.localStorage.removeItem(App.KEYS.vitaminDay);
+      App.store.reload();
+    }
+    function markVitamin(t) {
       var ev = App.store.add(App.vitaminEvent(t));
-      window.localStorage.setItem(App.KEYS.vitaminDay, n);
-      undoToast('ויטמין D סומן להיום', function () {
-        App.store.remove(ev.id);
-        // vitaminDoneToday() is true while the day key is today → put back the previous value
-        if (prevKey == null || prevKey === n) window.localStorage.removeItem(App.KEYS.vitaminDay);
-        else window.localStorage.setItem(App.KEYS.vitaminDay, prevKey);
-        App.store.reload();
-      });
+      window.localStorage.setItem(App.KEYS.vitaminDay, App.dayKey(t));
+      return ev;
+    }
+    vitBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var t = Date.now();
+      var existing = vitaminEventsToday(App.store.events(), t);
+      if (!existing.length) {
+        markVitamin(t);
+        undoToast('ויטמין D סומן להיום', function () { clearVitaminToday(Date.now()); });
+      } else {
+        clearVitaminToday(t);
+        undoToast('הסימון של ויטמין D בוטל', function () { markVitamin(Date.now()); });
+      }
       update();
     });
 
