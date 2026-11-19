@@ -475,6 +475,82 @@
     return code;
   }
 
+  /* ---------------- daily notifications (moved from the stats page) ---------------- */
+  var SWITCH = 'switch peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input';
+  var THUMB = 'switch-thumb pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0';
+
+  function alertsEnabled() {
+    try { return localStorage.getItem(App.KEYS.alertsEnabled) === '1'; } catch (e) { return false; }
+  }
+
+  // turns the daily notifications on (permission + server push registration) or off
+  function toggleAlerts(next) {
+    if (!next) {
+      return App.push.sync(false).then(function () {
+        localStorage.setItem(App.KEYS.alertsEnabled, '0');
+        localStorage.removeItem(App.KEYS.pushEnabled);
+      }, function (err) {
+        App.toast.error(err instanceof Error ? err.message : 'ביטול ההתראות נכשל');
+      });
+    }
+    if (typeof Notification === 'undefined') {
+      App.toast.error('התראות אינן זמינות כאן. באייפון יש להוסיף את האתר למסך הבית ולפתוח אותו משם.');
+      return Promise.resolve();
+    }
+    if (window.top !== window.self && Notification.permission !== 'granted') {
+      App.toast.error('פתחי את האפליקציה בלשונית נפרדת כדי לאפשר התראות.');
+      return Promise.resolve();
+    }
+    var perm = Notification.permission === 'granted'
+      ? Promise.resolve('granted')
+      : new Promise(function (res) {
+          var p = Notification.requestPermission(res);
+          if (p && p.then) p.then(res, function () { res('denied'); });
+        });
+    return perm.then(function (r) {
+      if (r !== 'granted') { App.toast.error('ההתראות חסומות בהגדרות הדפדפן.'); return; }
+      return App.push.enable().then(function () {
+        localStorage.setItem(App.KEYS.alertsEnabled, '1');
+        App.toast.success('התראות יומיות מופעלות גם כשהאפליקציה סגורה.');
+      }, function (err) {
+        App.toast.error(err instanceof Error ? err.message : 'הפעלת התראות ברקע נכשלה');
+      });
+    });
+  }
+
+  function notifCard() {
+    var node = el(
+      '<section class="st-card st-lavender" aria-labelledby="st-notif-h">' +
+        '<h2 class="st-title" id="st-notif-h">' + App.icon('bell') + ' התראות</h2>' +
+        '<div class="st-field">' +
+          '<div class="st-field-text"><p class="st-label" id="st-notif-label">התראות יומיות</p>' +
+            '<p class="st-hint" data-slot="desc"></p></div>' +
+          '<button type="button" role="switch" class="' + SWITCH + '" aria-labelledby="st-notif-label" value="on">' +
+            '<span class="' + THUMB + '"></span></button>' +
+        '</div>' +
+      '</section>'
+    );
+    var sw = node.querySelector('[role=switch]'), thumb = sw.firstElementChild, desc = node.querySelector('[data-slot=desc]');
+    var card = { node: node, alive: true, busy: false, paint: paint };
+    function paint() {
+      var on = alertsEnabled(), g = App.goals(), h = App.EVENING_NOTIFY_HOUR;
+      var s = on ? 'checked' : 'unchecked';
+      sw.setAttribute('aria-checked', String(on));
+      sw.setAttribute('data-state', s);
+      thumb.setAttribute('data-state', s);
+      desc.textContent = 'בין ' + h + ':00 ל־' + (h + 1) + ':00 לפי שעון ישראל, גם כשהאפליקציה סגורה, רק אם נרשמו פחות מ־' + g.wet + ' פיפי או מ־' + g.dirty + ' קקי.';
+    }
+    sw.addEventListener('click', function () {
+      if (card.busy) return; // permission prompt still open
+      card.busy = true;
+      sw.disabled = true;
+      var done = function () { card.busy = false; sw.disabled = false; if (card.alive) { paint(); sw.focus({ preventScroll: true }); } };
+      toggleAlerts(!alertsEnabled()).then(done, done);
+    });
+    paint();
+    return card;
+  }
+
   function mount(root) {
     var page = el(
       '<div class="space-y-6 st-page">' +
@@ -518,7 +594,11 @@
     goals.appendChild(el('<p class="st-hint">לפיהם מוצגת אזהרה בסטטיסטיקה ונשלחת התראת הערב כשיש פחות חיתולים מהיעד.</p>'));
     page.appendChild(goals);
 
-    // 3. backup
+    // 3. daily notifications (moved here from the stats page)
+    var notif = notifCard();
+    page.appendChild(notif.node);
+
+    // 4. backup
     var backup = el(
       '<section class="st-card st-sand" aria-labelledby="st-backup-h">' +
         '<h2 class="st-title" id="st-backup-h">' + App.icon('download') + ' גיבוי נתונים</h2>' +
@@ -538,7 +618,7 @@
     fileInput.addEventListener('change', function () { onImportFile(fileInput); });
     page.appendChild(backup);
 
-    // 4. sharing
+    // 5. sharing
     var share = shareCard();
     page.appendChild(share.node);
 
@@ -550,6 +630,7 @@
     }
     function refresh() {
       feedStepper.paint(); wet.paint(); dirty.paint();
+      notif.paint();
       paintCount();
       share.update();
     }
@@ -573,6 +654,7 @@
     }
 
     return function () {
+      notif.alive = false;
       unsubStore();
       unsubSync();
       clearInterval(clock);

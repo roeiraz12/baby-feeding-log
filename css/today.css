@@ -37,8 +37,9 @@
 }
 .feed-banner-row { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
 .feed-banner-row svg { flex-shrink: 0; color: var(--pastel-lavender-fg); }
+/* fills left → right (physical, even in RTL) with the elapsed percent on the filled part */
 .feed-progress {
-  position: relative; height: 8px; border-radius: 9999px; overflow: hidden;
+  position: relative; height: 20px; border-radius: 9999px; overflow: hidden; direction: ltr;
   background: color-mix(in oklab, var(--pastel-lavender-fg) 14%, var(--background));
 }
 .feed-progress-fill {
@@ -46,6 +47,14 @@
   background: color-mix(in oklab, var(--pastel-lavender-fg) 60%, var(--pastel-lavender));
   transition: width 1s linear, background-color .4s ease;
 }
+.feed-progress-pct {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
+  transform: translateX(-100%); padding: 0 8px;
+  font-size: .75rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
+  color: #fff; white-space: nowrap; pointer-events: none;
+  transition: left 1s linear;
+}
+.feed-banner[data-pct-outside=true] .feed-progress-pct { transform: none; color: var(--pastel-lavender-fg); }
 .feed-banner[data-state=overdue] { background: color-mix(in oklab, var(--pastel-rose) 75%, transparent); }
 .feed-banner[data-state=overdue] .feed-banner-row svg { color: var(--pastel-rose-fg); }
 .feed-banner[data-state=overdue] .feed-progress { background: color-mix(in oklab, var(--pastel-rose-fg) 14%, var(--background)); }
@@ -64,5 +73,88 @@
 section > h2[tabindex="-1"]:focus { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .feed-banner, .feed-progress-fill, .today-goal-bar > span, .history-more { transition: none; }
+  .feed-banner, .feed-progress-fill, .feed-progress-pct, .today-goal-bar > span, .history-more { transition: none; }
 }
+
+/* ---- vitamin D: the label is struck through once today's dose is marked ---- */
+.vitamin-row[data-done=true] .vitamin-label {
+  color: var(--muted-foreground);
+  text-decoration: line-through 2px currentColor;
+}
+
+/* ---- history: soft blue rows for pee, light brown rows for poop ---- */
+.history-row-wet {
+  background: color-mix(in oklab, var(--pastel-sky) 45%, var(--card));
+  border-color: color-mix(in oklab, var(--pastel-sky-fg) 18%, transparent);
+}
+.history-row-dirty {
+  background: color-mix(in oklab, var(--pastel-sand) 60%, var(--card));
+  border-color: color-mix(in oklab, var(--pastel-sand-fg) 20%, transparent);
+}
+.history-row-wet > span:first-child { background: var(--pastel-sky); color: var(--pastel-sky-fg); }
+.history-row-dirty > span:first-child { background: var(--pastel-sand); color: var(--pastel-sand-fg); }
+
+/* ---- history: one card per day with a 24-hour ribbon (left = 00:00, right = 24:00) ---- */
+.history-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .75rem; color: var(--muted-foreground); }
+.history-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.history-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; }
+.history-swatch-n-right { background: color-mix(in oklab, var(--pastel-lavender-fg) 55%, var(--pastel-lavender)); }
+.history-swatch-n-left { background: color-mix(in oklab, var(--pastel-rose-fg) 45%, var(--pastel-rose)); }
+.history-swatch-wet { background: color-mix(in oklab, var(--pastel-sky-fg) 45%, var(--pastel-sky)); }
+.history-swatch-dirty { background: color-mix(in oklab, var(--pastel-sand-fg) 55%, var(--pastel-sand)); }
+.history-swatch-other { background: var(--muted-foreground); }
+
+.history-day {
+  background: var(--card); color: var(--card-foreground);
+  border: 1px solid var(--border); border-radius: 1.5rem;
+  padding: 12px 14px 14px; box-shadow: 0 1px 3px 0 #0000000f;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.history-day-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 2px 0; background: none; border: 0; color: inherit; cursor: pointer; text-align: start;
+  border-radius: .5rem;
+}
+.history-day-head:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.history-day-title { font-size: .95rem; font-weight: 600; }
+.history-day-toggle {
+  font-size: .75rem; font-weight: 500; color: var(--pastel-lavender-fg);
+  background: color-mix(in oklab, var(--pastel-lavender) 60%, transparent);
+  padding: 3px 10px; border-radius: 9999px;
+}
+
+.history-ribbon { direction: ltr; padding: 0 2px; }
+.history-track {
+  position: relative; height: 40px; border-radius: 10px; overflow: hidden;
+  background: color-mix(in oklab, var(--secondary) 80%, transparent);
+}
+.history-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
+.history-grid.is-major { background: color-mix(in oklab, var(--foreground) 14%, transparent); }
+.history-seg { position: absolute; top: 5px; height: 14px; border-radius: 4px; min-width: 4px; }
+.history-dot {
+  position: absolute; top: 24px; width: 11px; height: 11px; margin-left: -5.5px; border-radius: 9999px;
+  box-shadow: 0 0 0 1.5px var(--card);
+}
+.history-now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--primary); opacity: .7; }
+.history-axis { position: relative; height: 16px; margin-top: 3px; }
+.history-axis-label {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: .625rem; line-height: 16px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.history-axis-label:first-child { transform: none; }
+.history-axis-label:last-child { transform: translateX(-100%); }
+
+.history-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.history-chip { font-size: .75rem; font-weight: 500; padding: 2px 10px; border-radius: 9999px; }
+.history-chip-n { background: var(--pastel-lavender); color: var(--pastel-lavender-fg); }
+.history-chip-wet { background: var(--pastel-sky); color: var(--pastel-sky-fg); }
+.history-chip-dirty { background: var(--pastel-sand); color: var(--pastel-sand-fg); }
+.history-list { margin-top: 2px; }
+
+/* rows inside a day card: a little tighter, and labels wrap instead of being cut off */
+.history-day { padding-inline: 10px; }
+.history-list .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
+.history-list li > div { padding: 10px; gap: 8px; box-shadow: none; }
+.history-list li > div > span:first-child { width: 2.25rem; height: 2.25rem; }
+.history-list button { width: 2.25rem; height: 2.25rem; }
+.history-axis-caption { font-size: .625rem; color: var(--muted-foreground); text-align: center; margin-top: 1px; }

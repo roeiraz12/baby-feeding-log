@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f9d9e0"/><stop offset="1" stop-color="#d9cdf2"/>
+    </linearGradient>
+    <mask id="cut"><rect width="512" height="512" fill="#fff"/><circle cx="318" cy="196" r="138" fill="#000"/></mask>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fbe6ec"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g transform="translate(0 0) scale(1)">
+    <circle cx="238" cy="276" r="160" fill="#5f4570" mask="url(#cut)"/>
+    <path d="M318 206 C318 206 268 262 268 296 a50 50 0 0 0 100 0 C368 262 318 206 318 206 Z" fill="url(#drop)"/>
+    <ellipse cx="296" cy="290" rx="9" ry="17" transform="rotate(20 296 290)" fill="#ffffff" opacity=".9"/>
+    <path d="M392 120 l9 22 22 9 -22 9 -9 22 -9 -22 -22 -9 22 -9 z" fill="#ffffff"/>
+    <circle cx="420" cy="214" r="9" fill="#ffffff" opacity=".85"/>
+  </g>
+</svg>

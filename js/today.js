@@ -43,13 +43,14 @@
             '</div>';
           }).join('') +
         '</div>' +
-        '<label for="vitamin-d" data-slot="vitamin" class="flex min-h-14 cursor-pointer items-center gap-3 border-b border-border py-3 font-semibold">' +
-          '<button type="button" role="checkbox" aria-checked="false" data-state="unchecked" value="on" class="' + CHECKBOX + '" id="vitamin-d"></button><span>ויטמין D</span>' +
+        '<label for="vitamin-d" data-slot="vitamin" data-done="false" class="vitamin-row flex min-h-14 cursor-pointer items-center gap-3 border-b border-border py-3 font-semibold">' +
+          '<button type="button" role="checkbox" aria-checked="false" data-state="unchecked" value="on" class="' + CHECKBOX + '" id="vitamin-d"></button><span class="vitamin-label">ויטמין D</span>' +
         '</label>' +
         '<div data-slot="banner" class="feed-banner" data-state="countdown">' +
           '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span></div>' +
           '<div class="feed-progress" role="progressbar" aria-label="הזמן שעבר מתחילת ההנקה האחרונה" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
             '<span class="feed-progress-fill" data-slot="banner-fill"></span>' +
+            '<span class="feed-progress-pct" data-slot="banner-pct" aria-hidden="true"></span>' +
           '</div>' +
         '</div>' +
         '<section class="space-y-3">' +
@@ -96,6 +97,7 @@
     var bannerText = q('[data-slot=banner-text]');
     var bannerBar = q('[role=progressbar]');
     var bannerFill = q('[data-slot=banner-fill]');
+    var bannerPct = q('[data-slot=banner-pct]');
     var sideBtns = {}, sideDesc = {};
     SIDES.forEach(function (s) {
       sideBtns[s.key] = q('[data-side=' + s.key + ']');
@@ -169,6 +171,7 @@
         vitBtn.setAttribute('data-state', vitDone ? 'checked' : 'unchecked');
         vitBtn.setAttribute('aria-checked', vitDone ? 'true' : 'false');
         vitBtn.innerHTML = vitDone ? App.icon('check', 'h-4 w-4') : '';
+        vitBtn.parentNode.setAttribute('data-done', vitDone ? 'true' : 'false'); // strikes the label through
       }
 
       // next-feed banner + progress bar (last feeding start → start + interval)
@@ -183,13 +186,17 @@
           bannerMode = mode;
           banner.setAttribute('data-state', mode);
           bannerText.innerHTML = mode === 'countdown'
-            ? 'הנקה הבאה בעוד <span class="font-mono tabular-nums" dir="ltr"></span>'
+            ? 'ההנקה הבאה בשעה <span class="tabular-nums" dir="ltr"></span> בערך'
             : App.esc(overdueText);
         }
-        if (mode === 'countdown') setText(bannerText.firstElementChild, App.fmtClock(R));
+        if (mode === 'countdown') setText(bannerText.firstElementChild, App.timeHM(L + interval));
         var frac = mode === 'overdue' ? 1 : Math.max(0, Math.min(1, (T - L) / interval));
         bannerFill.style.width = (frac * 100).toFixed(2) + '%';
         var pct = String(Math.floor(frac * 100));
+        // the percent label rides at the end of the filled part; outside it while the fill is too short
+        setText(bannerPct, mode === 'overdue' ? '' : pct + '%');
+        bannerPct.style.left = (frac * 100).toFixed(2) + '%';
+        setAttr(banner, 'data-pct-outside', frac < 0.14 ? 'true' : 'false');
         if (bannerBar.getAttribute('aria-valuenow') !== pct) {
           bannerBar.setAttribute('aria-valuenow', pct);
           bannerBar.setAttribute('aria-valuetext', mode === 'overdue'

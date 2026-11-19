@@ -35,10 +35,6 @@
     schedList: 'space-y-2',
     schedItem: 'flex items-center justify-between rounded-2xl bg-secondary/60 px-4 py-3',
     schedTime: 'font-medium',
-    notifBody: 'min-w-0 flex-1',
-    notifTitle: 'font-medium',
-    switchBtn: 'switch peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
-    switchThumb: 'switch-thumb pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0'
   };
 
   function el(tag, cls, text) {
@@ -343,58 +339,11 @@
     return { card: cc, box: box, key: title, data: data, series: series };
   }
 
-  /* ---------------- notifications switch ---------------- */
-
-  function alertsEnabled() {
-    try { return localStorage.getItem(App.KEYS.alertsEnabled) === '1'; } catch (e) { return false; }
-  }
-
-  // C(): port of the original handler, including the server push registration.
-  function onToggle(next, rerender) {
-    if (!next) {
-      return App.push.sync(false).then(function () {
-        localStorage.setItem(App.KEYS.alertsEnabled, '0');
-        localStorage.removeItem(App.KEYS.pushEnabled);
-        rerender();
-      }, function (err) {
-        App.toast(err instanceof Error ? err.message : 'ביטול ההתראות נכשל', { type: 'error' });
-      });
-    }
-    if (typeof Notification === 'undefined') {
-      App.toast('התראות אינן זמינות כאן. באייפון יש להוסיף את האתר למסך הבית ולפתוח אותו משם.', { type: 'error' });
-      return Promise.resolve();
-    }
-    if (window.top !== window.self && Notification.permission !== 'granted') {
-      App.toast('פתחי את האפליקציה בלשונית נפרדת כדי לאפשר התראות.', { type: 'error' });
-      return Promise.resolve();
-    }
-    var perm = Notification.permission === 'granted'
-      ? Promise.resolve('granted')
-      : new Promise(function (res) {
-          var p = Notification.requestPermission(res);
-          if (p && p.then) p.then(res, function () { res('denied'); });
-        });
-    return perm.then(function (r) {
-      if (r !== 'granted') {
-        App.toast('ההתראות חסומות בהגדרות הדפדפן.', { type: 'error' });
-        return;
-      }
-      return App.push.enable().then(function () {
-        localStorage.setItem(App.KEYS.alertsEnabled, '1');
-        rerender();
-        App.toast('התראות יומיות מופעלות גם כשהאפליקציה סגורה.', { type: 'success' });
-      }, function (err) {
-        App.toast(err instanceof Error ? err.message : 'הפעלת התראות ברקע נכשלה', { type: 'error' });
-      });
-    });
-  }
-
   /* ---------------- page ---------------- */
 
   function render(root, state) {
     if (!state.alive) return; // e.g. a permission prompt resolved after leaving the page
     cleanupCharts(state);
-    var hadFocus = !!document.activeElement && document.activeElement.classList.contains('switch') && root.contains(document.activeElement);
     var events = App.store.events();
     var now = state.now;
     var v = App.dailyStats(events);
@@ -500,34 +449,7 @@
     }
     wrap.appendChild(sc);
 
-    var nc = el('div', CLS.cardRow);
-    nc.insertAdjacentHTML('beforeend', App.icon('bell', 'h-5 w-5 shrink-0 text-muted-foreground'));
-    var nb = el('div', CLS.notifBody);
-    nb.appendChild(el('p', CLS.notifTitle, 'התראות יומיות'));
-    nb.appendChild(el('p', CLS.mutedXs, 'בין ' + App.EVENING_NOTIFY_HOUR + ':00 ל־' + (App.EVENING_NOTIFY_HOUR + 1) + ':00 לפי שעון ישראל, גם כשהאפליקציה סגורה, רק אם נרשמו פחות מ־' + goals.wet + ' פיפי או מ־' + goals.dirty + ' קקי.'));
-    nc.appendChild(nb);
-    var on = alertsEnabled();
-    var sw = el('button', CLS.switchBtn);
-    sw.type = 'button';
-    sw.setAttribute('role', 'switch');
-    sw.setAttribute('aria-checked', String(on));
-    sw.setAttribute('data-state', on ? 'checked' : 'unchecked');
-    sw.setAttribute('aria-label', 'התראות יומיות');
-    sw.value = 'on';
-    var thumb = el('span', CLS.switchThumb);
-    thumb.setAttribute('data-state', on ? 'checked' : 'unchecked');
-    sw.appendChild(thumb);
-    sw.addEventListener('click', function () {
-      if (state.toggling) return; // permission prompt still open
-      state.toggling = true;
-      var done = function () { state.toggling = false; };
-      onToggle(!on, function () { render(root, state); }).then(done, done);
-    });
-    nc.appendChild(sw);
-    wrap.appendChild(nc);
-
     root.replaceChildren(wrap);
-    if (hadFocus) sw.focus({ preventScroll: true });
     charts.forEach(function (c) {
       state.chartCleanups.push(buildChart(c.box, { data: c.data, series: c.series, animate: !state.animated[c.key] }));
       state.animated[c.key] = true; // grow only the first time each chart appears on this visit
