@@ -52,6 +52,7 @@
             '<span class="feed-progress-fill" data-slot="banner-fill"></span>' +
             '<span class="feed-progress-pct" data-slot="banner-pct" aria-hidden="true"></span>' +
           '</div>' +
+          '<div class="feed-axis" data-slot="banner-axis" aria-hidden="true"></div>' +
         '</div>' +
         '<section class="space-y-3">' +
           '<h2 class="' + H2 + '">' + App.icon('baby', 'h-4 w-4') + ' הנקה</h2>' +
@@ -98,6 +99,23 @@
     var bannerBar = q('[role=progressbar]');
     var bannerFill = q('[data-slot=banner-fill]');
     var bannerPct = q('[data-slot=banner-pct]');
+    var bannerAxis = q('[data-slot=banner-axis]');
+    var axisKey = '';
+    // times at the two ends of the bar: last feeding start on the left, expected next feeding on
+    // the right (rebuilt only when the start or the interval changes)
+    function paintAxis(start, interval) {
+      var k = start + ':' + interval;
+      if (k === axisKey) return;
+      axisKey = k;
+      var end = start + interval, html = '';
+      var label = function (t, cls) {
+        var p = ((t - start) / interval * 100).toFixed(2);
+        return '<span class="feed-axis-label' + (cls ? ' ' + cls : '') + '" style="left:' + p + '%">' + App.timeHM(t) + '</span>';
+      };
+      html += label(start, 'is-start');
+      html += label(end, 'is-end');
+      bannerAxis.innerHTML = html;
+    }
     var sideBtns = {}, sideDesc = {};
     SIDES.forEach(function (s) {
       sideBtns[s.key] = q('[data-side=' + s.key + ']');
@@ -197,6 +215,7 @@
         setText(bannerPct, mode === 'overdue' ? '' : pct + '%');
         bannerPct.style.left = (frac * 100).toFixed(2) + '%';
         setAttr(banner, 'data-pct-outside', frac < 0.14 ? 'true' : 'false');
+        paintAxis(L, interval);
         if (bannerBar.getAttribute('aria-valuenow') !== pct) {
           bannerBar.setAttribute('aria-valuenow', pct);
           bannerBar.setAttribute('aria-valuetext', mode === 'overdue'

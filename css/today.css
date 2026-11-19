@@ -98,7 +98,7 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 .history-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .75rem; color: var(--muted-foreground); }
 .history-legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .history-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; }
-.history-swatch-n-right { background: color-mix(in oklab, var(--pastel-lavender-fg) 55%, var(--pastel-lavender)); }
+.history-swatch-n, .history-swatch-n-right { background: color-mix(in oklab, var(--pastel-lavender-fg) 55%, var(--pastel-lavender)); }
 .history-swatch-n-left { background: color-mix(in oklab, var(--pastel-rose-fg) 45%, var(--pastel-rose)); }
 .history-swatch-wet { background: color-mix(in oklab, var(--pastel-sky-fg) 45%, var(--pastel-sky)); }
 .history-swatch-dirty { background: color-mix(in oklab, var(--pastel-sand-fg) 55%, var(--pastel-sand)); }
@@ -158,3 +158,16 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 .history-list li > div > span:first-child { width: 2.25rem; height: 2.25rem; }
 .history-list button { width: 2.25rem; height: 2.25rem; }
 .history-axis-caption { font-size: .625rem; color: var(--muted-foreground); text-align: center; margin-top: 1px; }
+
+/* a feeding mark on the ribbon: a fixed-width pill starting at the feeding start */
+.history-seg.history-swatch-n { width: 7px; margin-left: -3.5px; height: 14px; border-radius: 9999px; }
+
+/* hour labels under the next-feed bar (same left → right direction as the bar) */
+.feed-axis { position: relative; height: 16px; direction: ltr; margin-top: -2px; }
+.feed-axis-label {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: .6875rem; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground); white-space: nowrap;
+}
+.feed-axis-label.is-start { transform: none; color: var(--foreground); }
+.feed-axis-label.is-end { transform: translateX(-100%); color: var(--foreground); }

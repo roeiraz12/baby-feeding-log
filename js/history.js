@@ -136,7 +136,7 @@
   function legend() {
     var l = el('div', 'history-legend');
     l.setAttribute('aria-hidden', 'true');
-    [['n-right', 'הנקה ימין'], ['n-left', 'הנקה שמאל'], ['wet', 'פיפי'], ['dirty', 'קקי'], ['other', 'אחר']].forEach(function (x) {
+    [['n', 'הנקה'], ['wet', 'פיפי'], ['dirty', 'קקי']].forEach(function (x) {
       var i = el('span', 'history-legend-item');
       i.appendChild(el('span', 'history-swatch history-swatch-' + x[0]));
       i.appendChild(document.createTextNode(x[1]));
@@ -144,9 +144,9 @@
     });
     return l;
   }
-  // 0 → 24h bar, left to right: nursing sides as segments on the top lane, diapers and other
-  // events as dots on the bottom lane, an hourly grid with a label every 2 hours, "now" for today
-  function ribbon(key, list) {
+  // 0 → 24h bar, left to right: one mark per feeding on the top lane, diapers as dots on the
+  // bottom lane, an hourly grid with a label every 2 hours, "now" for today
+  function ribbon(key, list, feeds) {
     var b = dayBounds(key), span = b[1] - b[0], now = Date.now();
     var pos = function (t) { return Math.max(0, Math.min(100, (t - b[0]) / span * 100)); };
     var box = el('div', 'history-ribbon');
@@ -158,24 +158,24 @@
       track.appendChild(g);
     }
     var n = 0, w = 0, d = 0;
-    list.slice().sort(function (a, c) { return a.timestamp - c.timestamp; }).forEach(function (e) {
-      var tip = App.label(e) + ' · ' + App.timeHM(e.timestamp);
-      if (e.type === 'nursing') {
-        var end = e.endTimestamp != null ? e.endTimestamp : Math.min(now, e.timestamp + App.NURSING_MAX);
-        var seg = el('span', 'history-seg history-swatch-n-' + (e.subtype === 'left' ? 'left' : 'right'));
-        seg.style.left = pos(e.timestamp) + '%';
-        seg.style.width = Math.max(1.8, pos(end) - pos(e.timestamp)) + '%';
-        seg.title = tip;
-        track.appendChild(seg);
-        n++;
-      } else {
-        var kind = e.type === 'diaper' ? (e.subtype === 'wet' ? 'wet' : 'dirty') : 'other';
-        if (kind === 'wet') w++; else if (kind === 'dirty') d++;
-        var dot = el('span', 'history-dot history-swatch-' + kind);
-        dot.style.left = pos(e.timestamp) + '%';
-        dot.title = tip;
-        track.appendChild(dot);
-      }
+    // nursing: one mark per feeding, at the start of its first side (sides are not split)
+    feeds.forEach(function (f) {
+      if (App.dayKey(f.start) !== key) return;
+      var mark = el('span', 'history-seg history-swatch-n');
+      mark.style.left = pos(f.start) + '%';
+      mark.title = 'הנקה · ' + App.timeHM(f.start);
+      track.appendChild(mark);
+      n++;
+    });
+    // diapers only (other events are left off the ribbon)
+    list.forEach(function (e) {
+      if (e.type !== 'diaper') return;
+      var kind = e.subtype === 'wet' ? 'wet' : 'dirty';
+      if (kind === 'wet') w++; else d++;
+      var dot = el('span', 'history-dot history-swatch-' + kind);
+      dot.style.left = pos(e.timestamp) + '%';
+      dot.title = App.label(e) + ' · ' + App.timeHM(e.timestamp);
+      track.appendChild(dot);
     });
     if (App.isToday(key, now)) {
       var nowLine = el('span', 'history-now');
@@ -190,7 +190,7 @@
       axis.appendChild(lab);
     }
     box.appendChild(axis);
-    box.setAttribute('aria-label', 'ציר של 24 שעות: ' + n + ' צדדי הנקה, ' + w + ' פיפי, ' + d + ' קקי');
+    box.setAttribute('aria-label', 'ציר של 24 שעות: ' + n + ' הנקות, ' + w + ' פיפי, ' + d + ' קקי');
     return box;
   }
   function summary(key, list, feeds) {
@@ -288,7 +288,7 @@
         render(root, state);
       });
       sec.appendChild(head);
-      sec.appendChild(ribbon(key, list));
+      sec.appendChild(ribbon(key, list, feeds));
       sec.appendChild(summary(key, list, feeds));
       if (open) sec.appendChild(buildList(list, root));
       wrap.appendChild(sec);
