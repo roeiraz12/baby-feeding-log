@@ -1,4 +1,4 @@
-// Service worker: offline app shell + Web Push diaper reminders + notification clicks.
+// Service worker: offline app shell + Web Push (daily diaper alert, "next feeding" reminder) + notification clicks.
 // Registered at start-up by js/push.js. Keep this file name: existing push
 // subscriptions belong to this registration.
 //
@@ -10,7 +10,7 @@
 //  - /api/ and other origins: never cached.
 // Bump CACHE_VERSION when APP_SHELL changes; old caches are deleted on activate.
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE = `baby-journal-${CACHE_VERSION}`;
 const FONT_CACHE = "baby-journal-fonts-v1";
 const OWN_CACHES = [CACHE, FONT_CACHE];
@@ -118,18 +118,28 @@ async function cacheFirst(req) {
 
 /* ---------------- Web Push ---------------- */
 
+// Payload (from api/): {title, body, tag, url?, requireInteraction?, renotify?, vibrate?, timestamp?}.
+// The feed reminder (tag "feed-alarm") asks for the strongest alert the web allows: it stays on
+// screen until tapped (requireInteraction), vibrates, and alerts again even if an older one is shown.
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   let data;
   try { data = event.data.json(); } catch { data = { body: event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || "יומן תינוק", {
+  const tag = typeof data.tag === "string" && data.tag ? data.tag : undefined;
+  const options = {
     body: data.body,
-    tag: data.tag,
+    tag,
     lang: "he",
     dir: "rtl",
     icon: "/icons/icon-192.png",
-    data: { url: data.url || "/#/stats" },
-  }));
+    data: { url: typeof data.url === "string" ? data.url : (tag && tag.startsWith("feed") ? "/#/" : "/#/stats") },
+  };
+  if (data.requireInteraction === true) options.requireInteraction = true;
+  if (data.renotify === true && tag) options.renotify = true; // renotify without a tag throws
+  if (Array.isArray(data.vibrate)) options.vibrate = data.vibrate.filter((n) => Number.isFinite(n)).slice(0, 20);
+  if (Number.isFinite(data.timestamp)) options.timestamp = data.timestamp;
+  event.waitUntil(self.registration.showNotification(data.title || "יומן תינוק", options)
+    .catch(() => self.registration.showNotification(data.title || "יומן תינוק", { body: data.body, tag, data: options.data })));
 });
 
 /* ---------------- notification clicks (push and page notifications) ---------------- */

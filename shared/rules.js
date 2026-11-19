@@ -125,3 +125,19 @@ export function mergeData(localEvents, localTombs, incomingEvents, incomingTombs
   localById.forEach(function (e, id) { if (!byId.has(id)) removed++; });
   return { events: events, tombstones: Array.from(tombs.values()), added: added, updated: updated, removed: removed };
 }
+
+/** Hebrew duration phrase for whole minutes: "שעה", "שעתיים וחצי", "3 שעות", "45 דקות", "שעה ו-20 דקות". */
+export function hoursPhrase(totalMin) {
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  const hourWord = h === 1 ? "שעה" : h === 2 ? "שעתיים" : h + " שעות";
+  if (h === 0) return m === 30 ? "חצי שעה" : m + " דקות";
+  if (m === 0) return hourWord;
+  if (m === 30) return hourWord + " וחצי";
+  return hourWord + " ו-" + m + " דקות";
+}
+
+/** "עברו 3 שעות מההנקה האחרונה" / "עברה שעה ו-15 דקות מההנקה האחרונה" for an interval in minutes. */
+export function feedOverdueText(min) {
+  const singular = Math.floor(min / 60) === 1 || min === 30;
+  return (singular ? "עברה " : "עברו ") + hoursPhrase(min) + " מההנקה האחרונה";
+}

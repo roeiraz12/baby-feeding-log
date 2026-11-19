@@ -182,3 +182,31 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 }
 .history-track::before { top: 20px; }
 .history-track::after { top: 35px; }
+
+/* ---- next-feed banner: reminder bell at the inline end of the row (left in RTL) ---- */
+.feed-banner-row { position: relative; min-height: 2rem; padding-inline: 2.25rem; }
+.feed-bell {
+  position: absolute; inset-inline-end: -8px; top: 50%; translate: 0 -50%;
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 9999px; background: transparent; cursor: pointer;
+  color: var(--muted-foreground); -webkit-tap-highlight-color: transparent;
+}
+.feed-bell::before { /* the visible 32px circle inside the 40px touch target */
+  content: ""; position: absolute; inset: 4px; border-radius: inherit;
+  border: 1.5px solid color-mix(in oklab, var(--pastel-lavender-fg) 35%, transparent);
+  background: color-mix(in oklab, var(--background) 70%, transparent);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.feed-bell svg { position: relative; width: 1.125rem; height: 1.125rem; }
+.feed-bell[data-on=true] { color: #fff; }
+.feed-bell[data-on=true]::before {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--pastel-lavender-fg) 80%, var(--pastel-lavender));
+}
+.feed-bell[data-on=true] svg { fill: currentColor; }
+.feed-bell:active::before { transform: scale(.92); }
+.feed-bell:focus-visible { outline: none; }
+.feed-bell:focus-visible::before { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.feed-bell[aria-busy=true] { opacity: .6; cursor: progress; }
+.feed-bell[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .feed-bell::before { transition: none; } }

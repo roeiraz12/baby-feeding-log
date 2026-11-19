@@ -483,38 +483,37 @@
     try { return localStorage.getItem(App.KEYS.alertsEnabled) === '1'; } catch (e) { return false; }
   }
 
-  // turns the daily notifications on (permission + server push registration) or off
+  // turns the daily notifications on (permission + server push registration) or off.
+  // Permission / subscription go through App.push.ensureSubscribed() (shared with the feed reminder);
+  // the device stays registered while the feed reminder still needs it.
   function toggleAlerts(next) {
     if (!next) {
-      return App.push.sync(false).then(function () {
+      return App.push.sync({ diaper: false }).then(function () {
         localStorage.setItem(App.KEYS.alertsEnabled, '0');
         localStorage.removeItem(App.KEYS.pushEnabled);
       }, function (err) {
         App.toast.error(err instanceof Error ? err.message : 'ביטול ההתראות נכשל');
       });
     }
-    if (typeof Notification === 'undefined') {
-      App.toast.error('התראות אינן זמינות כאן. באייפון יש להוסיף את האתר למסך הבית ולפתוח אותו משם.');
-      return Promise.resolve();
-    }
-    if (window.top !== window.self && Notification.permission !== 'granted') {
-      App.toast.error('פתחי את האפליקציה בלשונית נפרדת כדי לאפשר התראות.');
-      return Promise.resolve();
-    }
-    var perm = Notification.permission === 'granted'
-      ? Promise.resolve('granted')
-      : new Promise(function (res) {
-          var p = Notification.requestPermission(res);
-          if (p && p.then) p.then(res, function () { res('denied'); });
-        });
-    return perm.then(function (r) {
-      if (r !== 'granted') { App.toast.error('ההתראות חסומות בהגדרות הדפדפן.'); return; }
-      return App.push.enable().then(function () {
-        localStorage.setItem(App.KEYS.alertsEnabled, '1');
-        App.toast.success('התראות יומיות מופעלות גם כשהאפליקציה סגורה.');
-      }, function (err) {
-        App.toast.error(err instanceof Error ? err.message : 'הפעלת התראות ברקע נכשלה');
-      });
+    return App.push.ensureSubscribed().then(function () {
+      return App.push.sync({ diaper: true });
+    }).then(function () {
+      localStorage.setItem(App.KEYS.alertsEnabled, '1');
+      localStorage.setItem(App.KEYS.pushEnabled, '1');
+      App.toast.success('התראות יומיות מופעלות גם כשהאפליקציה סגורה.');
+    }, function (err) {
+      App.toast.error(err instanceof Error ? err.message : 'הפעלת התראות ברקע נכשלה');
+    });
+  }
+
+  // the "next feeding" reminder for every feeding (App.push.setFeedAlways asks for permission)
+  function toggleFeedAlways(next) {
+    return App.push.setFeedAlways(next).then(function (r) {
+      if (r && r.unconfigured) return; // push.js already explained it
+      if (next) App.toast.success('מעכשיו תגיע תזכורת בכל הנקה, גם כשהאפליקציה סגורה.');
+      else App.toast('התזכורת האוטומטית כובתה. אפשר עדיין להפעיל תזכורת עם הפעמון בדף היומן.');
+    }, function (err) {
+      App.toast.error(err instanceof Error ? err.message : 'שינוי התזכורת נכשל');
     });
   }
 
@@ -524,29 +523,53 @@
         '<h2 class="st-title" id="st-notif-h">' + App.icon('bell') + ' התראות</h2>' +
         '<div class="st-field">' +
           '<div class="st-field-text"><p class="st-label" id="st-notif-label">התראות יומיות</p>' +
-            '<p class="st-hint" data-slot="desc"></p></div>' +
-          '<button type="button" role="switch" class="' + SWITCH + '" aria-labelledby="st-notif-label" value="on">' +
+            '<p class="st-hint" id="st-notif-desc" data-slot="desc"></p></div>' +
+          '<button type="button" role="switch" data-switch="daily" class="' + SWITCH + '" aria-labelledby="st-notif-label" aria-describedby="st-notif-desc" value="on">' +
             '<span class="' + THUMB + '"></span></button>' +
         '</div>' +
+        '<div class="st-field">' +
+          '<div class="st-field-text"><p class="st-label" id="st-feedrem-label">תזכורת להנקה הבאה — תמיד</p>' +
+            '<p class="st-hint" id="st-feedrem-desc" data-slot="feed-desc"></p></div>' +
+          '<button type="button" role="switch" data-switch="feed" class="' + SWITCH + '" aria-labelledby="st-feedrem-label" aria-describedby="st-feedrem-desc" value="on">' +
+            '<span class="' + THUMB + '"></span></button>' +
+        '</div>' +
+        '<p class="st-hint">באייפון ההתראות עובדות רק כשהאתר מותקן במסך הבית ונפתח משם. כדי שהתזכורת תישאר על המסך עד שתגיבי: הגדרות ← עדכונים ← יומן תינוק ← סגנון באנרים ← קבוע.</p>' +
       '</section>'
     );
-    var sw = node.querySelector('[role=switch]'), thumb = sw.firstElementChild, desc = node.querySelector('[data-slot=desc]');
+    var sw = node.querySelector('[data-switch=daily]'), desc = node.querySelector('[data-slot=desc]');
+    var feedSw = node.querySelector('[data-switch=feed]'), feedDesc = node.querySelector('[data-slot=feed-desc]');
     var card = { node: node, alive: true, busy: false, paint: paint };
-    function paint() {
-      var on = alertsEnabled(), g = App.goals(), h = App.EVENING_NOTIFY_HOUR;
+    function feedAlwaysOn() { return App.settings.get().feedReminderAlways === true; }
+    function paintSwitch(btn, on) {
       var s = on ? 'checked' : 'unchecked';
-      sw.setAttribute('aria-checked', String(on));
-      sw.setAttribute('data-state', s);
-      thumb.setAttribute('data-state', s);
-      desc.textContent = 'בין ' + h + ':00 ל־' + (h + 1) + ':00 לפי שעון ישראל, גם כשהאפליקציה סגורה, רק אם נרשמו פחות מ־' + g.wet + ' פיפי או מ־' + g.dirty + ' קקי.';
+      btn.setAttribute('aria-checked', String(on));
+      btn.setAttribute('data-state', s);
+      btn.firstElementChild.setAttribute('data-state', s);
     }
-    sw.addEventListener('click', function () {
-      if (card.busy) return; // permission prompt still open
-      card.busy = true;
-      sw.disabled = true;
-      var done = function () { card.busy = false; sw.disabled = false; if (card.alive) { paint(); sw.focus({ preventScroll: true }); } };
-      toggleAlerts(!alertsEnabled()).then(done, done);
-    });
+    function paint() {
+      var g = App.goals(), h = App.EVENING_NOTIFY_HOUR;
+      paintSwitch(sw, alertsEnabled());
+      paintSwitch(feedSw, feedAlwaysOn());
+      desc.textContent = 'בין ' + h + ':00 ל־' + (h + 1) + ':00 לפי שעון ישראל, גם כשהאפליקציה סגורה, רק אם נרשמו פחות מ־' + g.wet + ' פיפי או מ־' + g.dirty + ' קקי.';
+      feedDesc.textContent = 'אחרי כל הנקה תגיע התראה בשעת ההנקה הבאה (' + App.hoursPhrase(App.settings.get().feedIntervalMin) +
+        ' מתחילת ההנקה), גם כשהאפליקציה סגורה. לא בשבת. לדילוג על הנקה אחת לחצי על הפעמון בדף היומן.';
+    }
+    // one switch at a time (a permission prompt may be open)
+    function bind(btn, isOn, toggle) {
+      btn.addEventListener('click', function () {
+        if (card.busy) return;
+        card.busy = true;
+        sw.disabled = true;
+        feedSw.disabled = true;
+        var done = function () {
+          card.busy = false; sw.disabled = false; feedSw.disabled = false;
+          if (card.alive) { paint(); btn.focus({ preventScroll: true }); }
+        };
+        toggle(!isOn()).then(done, done);
+      });
+    }
+    bind(sw, alertsEnabled, toggleAlerts);
+    bind(feedSw, feedAlwaysOn, toggleFeedAlways);
     paint();
     return card;
   }

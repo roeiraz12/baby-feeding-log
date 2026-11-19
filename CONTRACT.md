@@ -66,7 +66,9 @@ alertsEnabled:'newborn-tracker:alerts-enabled', alertLastDay:'newborn-tracker:al
 vitaminDay:'newborn-tracker:vitamin-d-day', snoozeUntil:'newborn-tracker:snooze-until',
 feedDismissed:'newborn-tracker:feed-alarm-dismissed', pushEnabled:'newborn-tracker:push-enabled',
 settings:'newborn-tracker:settings', tombstones:'newborn-tracker:tombstones' }`
-(push.js adds `App.KEYS.pushDevice = 'newborn-tracker:push-device'`.)
+(push.js adds `App.KEYS.pushDevice = 'newborn-tracker:push-device'` and `App.KEYS.feedReminderFor =
+'newborn-tracker:feed-reminder-for'` = `{start, on}`: the Today bell's choice for the feeding that started at `start`;
+also `newborn-tracker:feed-reminder-sync` = `{sig, at}` of what the server has scheduled.)
 
 - `App.NURSING_MAX = 9e5` (15 min, intended) · `App.SNOOZE = 9e5` · `App.FEEDING_GAP = 30 min` · `App.TOMBSTONE_TTL = 30 days`
 - `App.FEED_INTERVAL` — **getter**, ms, follows the setting (was a 3h constant). Prefer `App.feedIntervalMs()`.
@@ -75,9 +77,10 @@ settings:'newborn-tracker:settings', tombstones:'newborn-tracker:tombstones' }`
   `App.SETTINGS_EVENT = 'newborn-tracker:settings-changed'` (window `CustomEvent`, `detail` = new settings).
 
 ### Settings
-- `App.settings.get()` → `{ feedIntervalMin: 180, wetGoal: 6, dirtyGoal: 3 }` (defaults merged with stored; a copy).
+- `App.settings.get()` → `{ feedIntervalMin: 180, wetGoal: 6, dirtyGoal: 3, feedReminderAlways: false }` (defaults merged with stored; a copy).
 - `App.settings.set(patch)` → new settings. Validates: `feedIntervalMin` integer 30–480, `wetGoal`/`dirtyGoal`
-  integer 1–20 (numeric strings accepted). **Throws `Error` with a Hebrew message** on an invalid value
+  integer 1–20 (numeric strings accepted), `feedReminderAlways` boolean (background push reminder for every
+  feeding, see push.js below; change it through `App.push.setFeedAlways`, which asks for permission first). **Throws `Error` with a Hebrew message** on an invalid value
   (nothing saved). Unknown keys ignored. Persists to `newborn-tracker:settings`, dispatches
   `SETTINGS_EVENT` then `CHANGED_EVENT` (so every `App.store.subscribe` page re-renders).
 - `App.settings.defaults` (frozen).
@@ -85,6 +88,7 @@ settings:'newborn-tracker:settings', tombstones:'newborn-tracker:tombstones' }`
 - `App.feedOverdueText(min?)` → e.g. `'עברו 3 שעות מההנקה האחרונה'`, `'עברו שעתיים וחצי מההנקה האחרונה'`,
   `'עברה שעה ו-15 דקות מההנקה האחרונה'` (defaults to the configured interval).
 - `App.hoursPhrase(min)` → `'שעתיים וחצי'`, `'3 שעות'`, `'45 דקות'`, `'חצי שעה'`…
+  (both phrase helpers live in `shared/rules.js` as `hoursPhrase(min)` / `feedOverdueText(min)`; the server uses them too).
 - Settings are per device (not synced). They are in `exportData()`.
 
 ### Store
@@ -146,7 +150,39 @@ vitamin-D event exists today — id `vitamin-d-YYYY-MM-DD` or custom note `'וי
   Used by the feed alarm (`tag:'feed-alarm'`) and the local evening diaper notification. core.js does not
   register a service worker; whoever owns the SW registers it at startup.
 - Server push (`js/push.js` → `/api/public/push/device`) now also sends `wetGoal`/`dirtyGoal`; the cron
-  (`api/cron/daily.js`, Vercel cron 18:00 + 19:00 UTC) sends from `EVENING_NOTIFY_HOUR` using those goals.
+  (`api/cron/daily.js`, Vercel cron 18:00 + 19:00 UTC) sends from `EVENING_NOTIFY_HOUR` using those goals,
+  only to devices with `diaperAlerts !== false`.
+- `App.push` (js/push.js):
+  - `ensureSubscribed()` → Promise<device>: permission + SW + push subscription + local device record. Turns
+    nothing on by itself; rejects with a Hebrew message (iPhone not installed, blocked, iframe…). Callers set their
+    own switch, then call `sync()`.
+  - `sync(opts?)` → forced sync now (`opts.diaper` overrides the daily switch; a bare boolean still works).
+    Resolves `{ok}` / `{unconfigured:true}` (server has no QStash; a gentle toast is shown) / `{removed:true}` …
+  - `feedReminder(events?)` → `{start, dueAt, armed, always}` for the current last feeding
+    (armed = the bell's choice for that feeding, else `feedReminderAlways`).
+  - `setFeedReminder(on)` (Today bell, one feeding) · `setFeedAlways(on)` (setting; clears the bell choice).
+  - `enable()` (old: subscribe + daily alert on), `startSync()`, `registerSW()`.
+  - Background sync (debounced 1.5 s on `CHANGED_EVENT` — incl. a partner's feeding via `applyRemote`, settings —
+    `online`, `storage`, visible): device record, then the feed reminder, each only when changed. The device is
+    deleted on the server once neither the daily alert nor a feed reminder is wanted. A phone whose app is fully
+    closed reschedules only when it next opens/syncs.
+- "Next feeding" reminder (server, Upstash QStash — Vercel Hobby cron runs only daily):
+  - `POST /api/public/push/feed` `{id, token, dueAt|null, lastStart}` (same id/token as the device; 404 unknown
+    device, 403 wrong token, 400 dueAt not within now−2 min … now+12 h or interval not 30–480 min, 429 > 60/10 min/IP,
+    502 QStash error, **503 `{error:'qstash not configured'}`** without `QSTASH_TOKEN` — cancelling still works).
+    Publishes `{deviceId, dueAt}` to `<PUBLIC_BASE_URL | https://VERCEL_PROJECT_PRODUCTION_URL | request host>/api/public/push/feed-fire`
+    with `Upstash-Not-Before` = dueAt (s), then deletes the previous message (404 ignored). Same reminder again = no-op.
+  - `POST /api/public/push/feed-fire` (QStash only): verifies `Upstash-Signature` (HS256, current/next signing key,
+    iss, exp/nbf, sub = that URL, body = base64url sha256 of the raw body); sends only if `dueAt` is still the device's
+    current one, not already sent, not Shabbat (`isShabbat`, Jerusalem). Push: title "הגיע זמן הנקה", body
+    "עברו 3 שעות מההנקה האחרונה (התחילה ב-14:05)", tag `feed-alarm`, url `/#/`, requireInteraction, renotify,
+    vibrate, urgency high, TTL 1 h. 404/410 → device deleted; other push errors → 502 (QStash retries).
+  - Device record (`push:device:<id>`): `{token, subscription, diaperAlerts, day, wet, dirty, wetGoal, dirtyGoal,
+    lastSentDay, feed: {dueAt, lastStart, messageId, sentAt?, skippedAt?} | null, updatedAt}`. `device.js` keeps
+    `feed`; `enabled !== true` deletes the device and cancels its message. Missing `diaperAlerts` = true (old clients).
+  - `lib/qstash.js` (publish / cancel / verify, plain fetch + node:crypto), `lib/feed.js` (text, payload, limits),
+    `lib/http.js` `readRaw(req)` (raw body for signatures; handles a body Vercel already parsed).
+  - Env: `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, optional `QSTASH_URL`, `PUBLIC_BASE_URL`.
 
 ### UI primitives (class names styled in extra.css)
 - Icons: `App.icon(name, cls)` → `<svg class="lucide lucide-<kebab> <cls>" aria-hidden="true">`; `App.icons.<name>`.

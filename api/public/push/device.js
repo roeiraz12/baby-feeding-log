@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { send, readJson } from "../../../lib/http.js";
 import { rateLimit } from "../../../lib/ratelimit.js";
 import { getDevice, saveDevice, deleteDevice } from "../../../lib/store.js";
+import { cancelMessage } from "../../../lib/qstash.js";
 
 const isStr = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
 const isCount = (v) => Number.isInteger(v) && v >= 0 && v < 1000;
@@ -16,8 +17,12 @@ function sameToken(a, b) {
 }
 
 // POST /api/public/push/device
-// { id, token, subscription:{endpoint, keys:{p256dh, auth}}, enabled, day:"YYYY-MM-DD", wet, dirty,
+// { id, token, subscription:{endpoint, keys:{p256dh, auth}}, enabled, diaperAlerts?, day:"YYYY-MM-DD", wet, dirty,
 //   wetGoal?, dirtyGoal? (integers 1-20; missing = defaults 6 / 3) }
+// enabled = keep this device (it wants the daily diaper alert and/or "next feeding" reminders);
+// enabled !== true deletes it (and cancels a scheduled feed reminder).
+// diaperAlerts = the daily diaper alert is on (missing = true, as sent by older app versions).
+// The feed reminder itself ({dueAt, lastStart, messageId}) is set by /api/public/push/feed and kept here.
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method not allowed" });
   if (!(await rateLimit(req, "push-device", 30, 600))) return send(res, 429, { error: "too many requests" });
@@ -32,7 +37,10 @@ export default async function handler(req, res) {
   if (existing && !sameToken(existing.token, b.token)) return send(res, 403, { error: "forbidden" });
 
   if (b.enabled !== true) {
-    if (existing) await deleteDevice(b.id);
+    if (existing) {
+      if (existing.feed && existing.feed.messageId) await cancelMessage(existing.feed.messageId);
+      await deleteDevice(b.id);
+    }
     return send(res, 200, { ok: true, enabled: false });
   }
 
@@ -47,16 +55,19 @@ export default async function handler(req, res) {
   if ((b.wetGoal != null && !isGoal(b.wetGoal)) || (b.dirtyGoal != null && !isGoal(b.dirtyGoal))) {
     return send(res, 400, { error: "bad goals" });
   }
+  if (b.diaperAlerts != null && typeof b.diaperAlerts !== "boolean") return send(res, 400, { error: "bad diaperAlerts" });
 
   await saveDevice(b.id, {
     token: b.token,
     subscription: { endpoint: s.endpoint, keys: { p256dh: s.keys.p256dh, auth: s.keys.auth } },
+    diaperAlerts: b.diaperAlerts !== false,
     day: b.day,
     wet: b.wet,
     dirty: b.dirty,
     wetGoal: b.wetGoal ?? null,
     dirtyGoal: b.dirtyGoal ?? null,
     lastSentDay: existing ? existing.lastSentDay || null : null,
+    feed: existing ? existing.feed || null : null,
     updatedAt: Date.now(),
   });
   send(res, 200, { ok: true, enabled: true });

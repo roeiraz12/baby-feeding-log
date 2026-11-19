@@ -47,7 +47,10 @@
           '<button type="button" role="checkbox" aria-checked="false" data-state="unchecked" value="on" class="' + CHECKBOX + '" id="vitamin-d"></button><span class="vitamin-label">ויטמין D</span>' +
         '</label>' +
         '<div data-slot="banner" class="feed-banner" data-state="countdown">' +
-          '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span></div>' +
+          '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span>' +
+            // bell: a background reminder for this next feeding (js/push.js), at the inline end of the row
+            '<button type="button" class="feed-bell" data-slot="bell" aria-pressed="false" aria-label="תזכורת להנקה הבאה" hidden></button>' +
+          '</div>' +
           '<div class="feed-progress" role="progressbar" aria-label="הזמן שעבר מתחילת ההנקה האחרונה" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
             '<span class="feed-progress-fill" data-slot="banner-fill"></span>' +
             '<span class="feed-progress-pct" data-slot="banner-pct" aria-hidden="true"></span>' +
@@ -100,6 +103,22 @@
     var bannerFill = q('[data-slot=banner-fill]');
     var bannerPct = q('[data-slot=banner-pct]');
     var bannerAxis = q('[data-slot=banner-axis]');
+    var bell = q('[data-slot=bell]');
+    var bellKey = '', bellBusy = false;
+    // on: filled bell, aria-pressed=true. Shown only while the next feeding is still ahead.
+    function paintBell(show, fr) {
+      var k = !show ? 'hidden' : (fr.armed ? 'on' : 'off') + (bellBusy ? '-busy' : '');
+      if (k === bellKey) return;
+      bellKey = k;
+      bell.hidden = !show;
+      if (!show) return;
+      bell.innerHTML = App.icon(fr.armed ? 'bell' : 'bellOff', 'h-5 w-5');
+      bell.setAttribute('aria-pressed', fr.armed ? 'true' : 'false');
+      bell.setAttribute('data-on', fr.armed ? 'true' : 'false');
+      bell.setAttribute('aria-label', 'תזכורת להנקה הבאה — ' + (fr.armed ? 'פעילה' : 'כבויה'));
+      bell.title = fr.armed ? 'תזכורת פעילה (לחצי לביטול)' : 'תזכורת להנקה הבאה, גם כשהאפליקציה סגורה';
+      if (bellBusy) bell.setAttribute('aria-busy', 'true'); else bell.removeAttribute('aria-busy');
+    }
     var axisKey = '';
     // times at the two ends of the bar: last feeding start on the left, expected next feeding on
     // the right (rebuilt only when the start or the interval changes)
@@ -208,6 +227,7 @@
             : App.esc(overdueText);
         }
         if (mode === 'countdown') setText(bannerText.firstElementChild, App.timeHM(L + interval));
+        paintBell(mode === 'countdown', App.push.feedReminder(events));
         var frac = mode === 'overdue' ? 1 : Math.max(0, Math.min(1, (T - L) / interval));
         bannerFill.style.width = (frac * 100).toFixed(2) + '%';
         var pct = String(Math.floor(frac * 100));
@@ -310,6 +330,26 @@
             App.store.reload();
           });
         }
+      });
+    });
+
+    // bell: arm / cancel the background reminder for this next feeding
+    bell.addEventListener('click', function () {
+      if (bellBusy) return;
+      var fr = App.push.feedReminder();
+      if (!fr.start) return;
+      var next = !fr.armed;
+      bellBusy = true;
+      var p = App.push.setFeedReminder(next); // stores the choice right away
+      update();
+      p.then(function (r) {
+        if (!next) App.toast(fr.always ? 'התזכורת להנקה הזו בוטלה' : 'התזכורת בוטלה');
+        else if (!(r && r.unconfigured)) App.toast.success('נזכיר לך ב-' + App.timeHM(fr.dueAt));
+      }, function (err) {
+        App.toast.error(err instanceof Error ? err.message : 'הפעלת התזכורת נכשלה');
+      }).then(function () {
+        bellBusy = false;
+        update();
       });
     });
 

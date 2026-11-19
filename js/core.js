@@ -5,7 +5,8 @@
 import {
   shabbatWindow, isShabbat, dayKey, trackedHours,
   diaperWarnings as goalWarnings, DEFAULT_GOALS, mergeData,
-  EVENING_NOTIFY_HOUR, WARNING_FROM_HOUR
+  EVENING_NOTIFY_HOUR, WARNING_FROM_HOUR,
+  hoursPhrase, feedOverdueText as overdueTextFor
 } from '../shared/rules.js';
 
 const App = (window.App = window.App || {});
@@ -44,16 +45,19 @@ App.dayKey = dayKey;
 /* ------------------------------------------------------------------ */
 /* Settings                                                             */
 /* ------------------------------------------------------------------ */
-const SETTINGS_DEFAULTS = Object.freeze({ feedIntervalMin: 180, wetGoal: DEFAULT_GOALS.wet, dirtyGoal: DEFAULT_GOALS.dirty });
+const SETTINGS_DEFAULTS = Object.freeze({ feedIntervalMin: 180, wetGoal: DEFAULT_GOALS.wet, dirtyGoal: DEFAULT_GOALS.dirty, feedReminderAlways: false });
 const SETTINGS_RULES = {
   feedIntervalMin: { min: 30, max: 480, error: 'מרווח ההנקות צריך להיות מספר שלם של דקות בין 30 ל־480.' },
   wetGoal: { min: 1, max: 20, error: 'יעד הפיפי צריך להיות מספר שלם בין 1 ל־20.' },
-  dirtyGoal: { min: 1, max: 20, error: 'יעד הקקי צריך להיות מספר שלם בין 1 ל־20.' }
+  dirtyGoal: { min: 1, max: 20, error: 'יעד הקקי צריך להיות מספר שלם בין 1 ל־20.' },
+  // background push reminder for every next feeding (js/push.js)
+  feedReminderAlways: { bool: true, error: 'ערך לא תקין לתזכורת ההנקה.' }
 };
 let settingsCache = null;
 
 function validSetting(key, value) {
   const rule = SETTINGS_RULES[key];
+  if (rule && rule.bool) return typeof value === 'boolean' ? value : null;
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   return rule && Number.isInteger(n) && n >= rule.min && n <= rule.max ? n : null;
 }
@@ -98,20 +102,10 @@ App.goals = goals;
 // Kept for older callers: App.FEED_INTERVAL now follows the setting.
 Object.defineProperty(App, 'FEED_INTERVAL', { get: feedIntervalMs, enumerable: true, configurable: true });
 
-/** Hebrew duration phrase for whole minutes: "שעה", "שעתיים וחצי", "3 שעות", "45 דקות", "שעה ו-20 דקות". */
-function hoursPhrase(totalMin) {
-  const h = Math.floor(totalMin / 60), m = totalMin % 60;
-  const hourWord = h === 1 ? 'שעה' : h === 2 ? 'שעתיים' : h + ' שעות';
-  if (h === 0) return m === 30 ? 'חצי שעה' : m + ' דקות';
-  if (m === 0) return hourWord;
-  if (m === 30) return hourWord + ' וחצי';
-  return hourWord + ' ו-' + m + ' דקות';
-}
+/* hoursPhrase / the overdue text live in shared/rules.js (the server's feed reminder uses them too). */
 /** "עברו 3 שעות מההנקה האחרונה" for the configured feed interval. */
 function feedOverdueText(min) {
-  if (min === undefined) min = readSettings().feedIntervalMin;
-  const singular = Math.floor(min / 60) === 1 || min === 30;
-  return (singular ? 'עברה ' : 'עברו ') + hoursPhrase(min) + ' מההנקה האחרונה';
+  return overdueTextFor(min === undefined ? readSettings().feedIntervalMin : min);
 }
 App.hoursPhrase = hoursPhrase;
 App.feedOverdueText = feedOverdueText;

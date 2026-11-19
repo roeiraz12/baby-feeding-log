@@ -6,7 +6,8 @@ import { getDevice, saveDevice, deleteDevice, listDeviceIds } from "../../lib/st
 // Runs from Vercel Cron at 18:00 and 19:00 UTC (= 21:00 Israel in summer / winter).
 // Sends once per device per day, only from EVENING_NOTIFY_HOUR (21:00) Israel time,
 // never on Shabbat, and only when today's pee / poop are below the device's goals
-// (sent by the app; defaults 6 / 3).
+// (sent by the app; defaults 6 / 3). Devices registered only for the "next feeding" reminder
+// (diaperAlerts === false) are skipped; older records without the field have diaper alerts on.
 // ?force=1 skips the hour/Shabbat checks (for testing; still needs CRON_SECRET).
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
@@ -32,6 +33,7 @@ export default async function handler(req, res) {
   for (const id of await listDeviceIds()) {
     const d = await getDevice(id);
     if (!d) { await deleteDevice(id); continue; }
+    if (d.diaperAlerts === false) continue;
     if (d.lastSentDay === today && !force) continue;
     // Counts are only from today if the app synced today; otherwise nothing was logged.
     const fresh = d.day === today;
@@ -52,7 +54,9 @@ export default async function handler(req, res) {
         continue;
       }
     }
-    await saveDevice(id, { ...d, lastSentDay: today });
+    // re-read so a feed reminder scheduled meanwhile is not overwritten
+    const cur = await getDevice(id);
+    if (cur) await saveDevice(id, { ...cur, lastSentDay: today });
   }
   send(res, 200, { day: today, ...result });
 }
