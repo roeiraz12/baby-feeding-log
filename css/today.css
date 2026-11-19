@@ -125,7 +125,7 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 
 .history-ribbon { direction: ltr; padding: 0 2px; }
 .history-track {
-  position: relative; height: 40px; border-radius: 10px; overflow: hidden;
+  position: relative; height: 54px; border-radius: 10px; overflow: hidden;
   background: color-mix(in oklab, var(--secondary) 80%, transparent);
 }
 .history-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
@@ -171,3 +171,14 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 }
 .feed-axis-label.is-start { transform: none; color: var(--foreground); }
 .feed-axis-label.is-end { transform: translateX(-100%); color: var(--foreground); }
+
+/* three lanes so events at the same hour never hide each other:
+   nursing on top, pee in the middle, poop at the bottom */
+.history-dot.history-swatch-wet { top: 22px; }
+.history-dot.history-swatch-dirty { top: 37px; }
+.history-track::before, .history-track::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 1px;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.history-track::before { top: 20px; }
+.history-track::after { top: 35px; }
