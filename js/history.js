@@ -201,6 +201,13 @@
     [['n', nf + ' הנקות'], ['wet', w + ' פיפי'], ['dirty', d + ' קקי']].forEach(function (c) {
       row.appendChild(el('span', 'history-chip history-chip-' + c[0], c[1]));
     });
+    // binary verdict against the daily diaper goals from the settings (default 6 pee / 3 poop)
+    var g = App.goals(), ok = w >= g.wet && d >= g.dirty;
+    var badge = el('span', 'history-chip history-chip-' + (ok ? 'ok' : 'bad'));
+    badge.innerHTML = App.icon(ok ? 'check' : 'x', 'h-3.5 w-3.5');
+    badge.appendChild(document.createTextNode(ok ? 'תקין' : 'לא תקין'));
+    badge.title = 'יעד: ' + g.wet + ' פיפי ו-' + g.dirty + ' קקי';
+    row.appendChild(badge);
     return row;
   }
   // the detailed list of one day (edit / delete per row), shown when the day is expanded

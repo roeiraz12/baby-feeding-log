@@ -210,3 +210,9 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 .feed-bell[aria-busy=true] { opacity: .6; cursor: progress; }
 .feed-bell[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .feed-bell::before { transition: none; } }
+
+/* daily verdict next to the chips: green when both diaper goals were met, red otherwise */
+.history-chip-ok, .history-chip-bad { display: inline-flex; align-items: center; gap: 4px; }
+.history-chip-ok svg, .history-chip-bad svg { width: 14px; height: 14px; stroke-width: 3; }
+.history-chip-ok { background: oklch(90% .09 150); color: oklch(38% .11 150); }
+.history-chip-bad { background: oklch(90% .07 25); color: oklch(45% .16 25); }
