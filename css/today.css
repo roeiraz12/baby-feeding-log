@@ -210,6 +210,3 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 .feed-bell[aria-busy=true] { opacity: .6; cursor: progress; }
 .feed-bell[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .feed-bell::before { transition: none; } }
-
-/* Android clock-timer button: same round style as the bell, at the inline start of the row (right in RTL) */
-.feed-clock { inset-inline-end: auto; inset-inline-start: -8px; }
