@@ -11,6 +11,8 @@
   var BIG_BTN = 'whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground py-2 flex h-auto min-h-28 flex-col items-center justify-center gap-2 rounded-3xl px-4 text-lg font-semibold shadow-sm transition-transform active:scale-95';
   var H2 = 'flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground';
   var CHECKBOX = 'checkbox grid place-content-center peer shrink-0 rounded-sm border border-primary shadow cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground h-7 w-7';
+  // lucide alarm-clock
+  var ALARM_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M5 3 2 6"></path><path d="m22 6-3-3"></path><path d="M6.38 18.7 4 21"></path><path d="M17.64 18.67 20 21"></path></svg>';
   var SIDES = [
     { key: 'right', name: 'ימין', cls: 'bg-[var(--pastel-lavender)] text-[var(--pastel-lavender-fg)]' },
     { key: 'left', name: 'שמאל', cls: 'bg-[var(--pastel-rose)] text-[var(--pastel-rose-fg)]' }
@@ -50,6 +52,8 @@
           '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span>' +
             // bell: a background reminder for this next feeding (js/push.js), at the inline end of the row
             '<button type="button" class="feed-bell" data-slot="bell" aria-pressed="false" aria-label="תזכורת להנקה הבאה" hidden></button>' +
+            // Android only: start a timer in the phone's own Clock app until the next feeding
+            '<button type="button" class="feed-bell feed-clock" data-slot="clock" aria-label="טיימר בשעון של הטלפון עד ההנקה הבאה" title="טיימר בשעון של הטלפון" hidden>' + ALARM_ICON + '</button>' +
           '</div>' +
           '<div class="feed-progress" role="progressbar" aria-label="הזמן שעבר מתחילת ההנקה האחרונה" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
             '<span class="feed-progress-fill" data-slot="banner-fill"></span>' +
@@ -104,6 +108,31 @@
     var bannerPct = q('[data-slot=banner-pct]');
     var bannerAxis = q('[data-slot=banner-axis]');
     var bell = q('[data-slot=bell]');
+    var clockBtn = q('[data-slot=clock]');
+    var IS_ANDROID = /Android/i.test(navigator.userAgent || '');
+    var nextFeedAt = 0;
+    // Android intent → the Clock app's SET_TIMER (seconds until the next feeding, started without
+    // opening the Clock UI). If the phone/Chrome can't handle it, Chrome opens the fallback URL.
+    function timerIntentUrl(seconds) {
+      var fallback = location.origin + location.pathname + '#/?timer=failed';
+      return 'intent:#Intent;action=android.intent.action.SET_TIMER;' +
+        'i.android.intent.extra.alarm.LENGTH=' + seconds + ';' +
+        'S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent('הנקה הבאה') + ';' +
+        'B.android.intent.extra.alarm.SKIP_UI=true;' +
+        'S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+    }
+    clockBtn.addEventListener('click', function () {
+      var secs = Math.round((nextFeedAt - Date.now()) / 1000);
+      if (!(secs > 0)) return;
+      secs = Math.min(86400, Math.max(60, secs));
+      App.toast('מפעילה טיימר של ' + App.hoursPhrase(Math.round(secs / 60)) + ' בשעון של הטלפון', { duration: 3000 });
+      window.location.href = timerIntentUrl(secs);
+    });
+    // came back from the fallback: the phone refused the timer
+    if (/[?&]timer=failed/.test(location.hash)) {
+      history.replaceState(null, '', location.pathname + location.search + '#/');
+      App.toast.error('הטלפון לא אפשר להפעיל טיימר מהאתר. אפשר להשתמש בפעמון או לכוון טיימר ידנית.', { duration: 7000 });
+    }
     var bellKey = '', bellBusy = false;
     // on: filled bell, aria-pressed=true. Shown only while the next feeding is still ahead.
     function paintBell(show, fr) {
@@ -228,6 +257,8 @@
         }
         if (mode === 'countdown') setText(bannerText.firstElementChild, App.timeHM(L + interval));
         paintBell(mode === 'countdown', App.push.feedReminder(events));
+        nextFeedAt = L + interval;
+        if (clockBtn.hidden !== !(IS_ANDROID && mode === 'countdown')) clockBtn.hidden = !(IS_ANDROID && mode === 'countdown');
         var frac = mode === 'overdue' ? 1 : Math.max(0, Math.min(1, (T - L) / interval));
         bannerFill.style.width = (frac * 100).toFixed(2) + '%';
         var pct = String(Math.floor(frac * 100));
