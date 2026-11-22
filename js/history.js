@@ -255,7 +255,7 @@
 
   function render(root, state) {
     var events = App.store.events()
-      .filter(function (e) { return e.type !== 'sleep'; })
+      .filter(function (e) { return e.type !== 'sleep' && !(e.type === 'custom' && e.subtype === 'drops'); }) // drops live only on the Today page
       .sort(function (a, b) { return b.timestamp - a.timestamp; });
     var groups = new Map();
     events.forEach(function (e) {

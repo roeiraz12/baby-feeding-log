@@ -230,3 +230,10 @@ vitamin-D event exists today — id `vitamin-d-YYYY-MM-DD` or custom note `'וי
   `fam:code:C` (familyId, TTL 900s). A sync costs 1 command when idle, 2 (HMGET + EVAL) otherwise.
   Max 500 items per request each way (`more` flag), 512 KB body, 60k items per family.
 - When adding JS/CSS files, also add them to `APP_SHELL` in `diaper-messaging-sw.js` and bump `CACHE_VERSION`.
+
+## "טיפות מספר 30" (Today page only)
+- Each "+" press is a store event `{type:'custom', subtype:'drops', note:'טיפות מספר 30', timestamp}` — it syncs
+  between parents like any event and is part of export/import.
+- js/today.js derives today's count (goal 5, shown only on the Today page), the auto-ticked checkbox, and the
+  20-minute wait between presses (from the latest drops event on any day) from these events. Undo removes the event.
+- js/history.js filters `subtype === 'drops'` out of the list, the 24-hour ribbon and the chips.

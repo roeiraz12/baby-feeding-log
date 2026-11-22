@@ -10,6 +10,22 @@
   // Merged class string of shadcn <Button variant="ghost"> + the page's $ component (as rendered live)
   var BIG_BTN = 'whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground py-2 flex h-auto min-h-28 flex-col items-center justify-center gap-2 rounded-3xl px-4 text-lg font-semibold shadow-sm transition-transform active:scale-95';
   var H2 = 'flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground';
+  // "טיפות מספר 30": a daily count (goal shown only on this page), stored as custom events
+  // {type:'custom', subtype:'drops'} so it syncs between parents; one press per 20 minutes
+  var DROPS_GOAL = 5;
+  var DROPS_GAP = 20 * 60e3;
+  var DROPS_NOTE = 'טיפות מספר 30';
+  function isDrops(e) { return e.type === 'custom' && e.subtype === 'drops'; }
+  // → {count today, lastPress (any day, so 23:55 still blocks until 00:15)}
+  function dropsState(events, now) {
+    var today = App.dayKey(now), count = 0, last = 0;
+    events.forEach(function (e) {
+      if (!isDrops(e)) return;
+      if (App.dayKey(e.timestamp) === today) count++;
+      if (e.timestamp > last) last = e.timestamp;
+    });
+    return { count: count, last: last, blocked: count >= DROPS_GOAL || (last > 0 && now - last < DROPS_GAP) };
+  }
   var CHECKBOX = 'checkbox grid place-content-center peer shrink-0 rounded-sm border border-primary shadow cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground h-7 w-7';
   var SIDES = [
     { key: 'right', name: 'ימין', cls: 'bg-[var(--pastel-lavender)] text-[var(--pastel-lavender-fg)]' },
@@ -46,6 +62,14 @@
         '<label for="vitamin-d" data-slot="vitamin" data-done="false" class="vitamin-row flex min-h-14 cursor-pointer items-center gap-3 border-b border-border py-3 font-semibold">' +
           '<button type="button" role="checkbox" aria-checked="false" data-state="unchecked" value="on" class="' + CHECKBOX + '" id="vitamin-d"></button><span class="vitamin-label">ויטמין D</span>' +
         '</label>' +
+        // "טיפות מספר 30": auto-ticked checkbox + label, count X/5, and "+" (20 min between presses)
+        '<div data-slot="drops" data-done="false" class="drops-row flex min-h-14 items-center gap-3 border-b border-border py-3 font-semibold">' +
+          '<span class="' + CHECKBOX + ' drops-check" data-state="unchecked" aria-hidden="true"></span>' +
+          '<span class="drops-label" aria-hidden="true">טיפות מספר 30</span>' +
+          '<span class="sr-only" data-slot="drops-sr"></span>' +
+          '<span class="drops-count tabular-nums" dir="ltr" aria-hidden="true"><b data-slot="drops-n">0</b>/' + DROPS_GOAL + '</span>' +
+          '<button type="button" class="drops-plus" data-act="drops">' + App.icon('plus', 'h-5 w-5') + '</button>' +
+        '</div>' +
         '<div data-slot="banner" class="feed-banner" data-state="countdown">' +
           '<div class="feed-banner-row">' + App.icon('timer', 'h-4 w-4') + '<span data-slot="banner-text"></span>' +
             // bell: a background reminder for this next feeding (js/push.js), at the inline end of the row
@@ -89,6 +113,8 @@
       goalEls[k] = { cell: c, sr: c.querySelector('[data-goal-sr]'), target: c.querySelector('[data-goal-target]'), fill: c.querySelector('[data-goal-fill]') };
     });
     var vitBtn = q('#vitamin-d');
+    var dropsRow = q('[data-slot=drops]'), dropsCheck = q('.drops-check'), dropsN = q('[data-slot=drops-n]');
+    var dropsSr = q('[data-slot=drops-sr]'), dropsPlus = q('[data-act=drops]');
     // today's vitamin-D events (fixed id vitamin-d-YYYY-MM-DD, or an older custom 'ויטמין D' note)
     function vitaminEventsToday(events, t) {
       var day = App.dayKey(t);
@@ -211,6 +237,20 @@
         vitBtn.parentNode.setAttribute('data-done', vitDone ? 'true' : 'false'); // strikes the label through
       }
 
+      // drops counter: derived from events, so it is right on both parents' phones and after undo
+      var ds = dropsState(events, T), dDone = ds.count >= DROPS_GOAL;
+      setText(dropsN, String(ds.count));
+      setText(dropsSr, DROPS_NOTE + ': ' + ds.count + ' מתוך ' + DROPS_GOAL + (dDone ? ', היעד הושג' : ''));
+      if (dropsRow.getAttribute('data-done') !== String(dDone)) {
+        dropsRow.setAttribute('data-done', String(dDone));
+        dropsCheck.setAttribute('data-state', dDone ? 'checked' : 'unchecked');
+        dropsCheck.innerHTML = dDone ? App.icon('check', 'h-4 w-4') : '';
+      }
+      if (dropsPlus.disabled !== ds.blocked) dropsPlus.disabled = ds.blocked;
+      setAttr(dropsPlus, 'aria-label', dDone ? 'הוספת טיפות מספר 30 — הגעת ליעד היום'
+        : ds.blocked ? 'הוספת טיפות מספר 30 — אפשר שוב 20 דקות אחרי הלחיצה הקודמת'
+        : 'הוספת טיפות מספר 30');
+
       // next-feed banner + progress bar (last feeding start → start + interval)
       var L = App.lastNursing(events);
       var interval = App.feedIntervalMs();
@@ -302,6 +342,16 @@
         undoToast('הסימון של ויטמין D בוטל', function () { markVitamin(Date.now()); });
       }
       update();
+    });
+
+    dropsPlus.addEventListener('click', function () {
+      var t = Date.now();
+      if (dropsState(App.store.events(), t).blocked) { update(); return; } // double-tap / stale-UI guard
+      var ev = App.store.add({ type: 'custom', subtype: 'drops', timestamp: t, note: DROPS_NOTE });
+      update(); // disables "+" right away
+      undoToast(DROPS_NOTE + ': ' + dropsState(App.store.events(), t).count + '/' + DROPS_GOAL, function () {
+        App.store.remove(ev.id);
+      });
     });
 
     SIDES.forEach(function (s) {

@@ -216,3 +216,27 @@ section > h2[tabindex="-1"]:focus { outline: none; }
 .history-chip-ok svg, .history-chip-bad svg { width: 14px; height: 14px; stroke-width: 3; }
 .history-chip-ok { background: oklch(90% .09 150); color: oklch(38% .11 150); }
 .history-chip-bad { background: oklch(90% .07 25); color: oklch(45% .16 25); }
+
+/* ---- "טיפות מספר 30": auto-ticked box, label, count X/5 and a soft but clear "+" ---- */
+.drops-row .drops-check { cursor: default; }
+.drops-count {
+  margin-inline-start: auto; font-size: 1rem; font-weight: 500;
+  color: var(--muted-foreground); font-variant-numeric: tabular-nums;
+}
+.drops-count b { font-size: 1.25rem; font-weight: 700; color: var(--foreground); }
+.drops-plus {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 9999px; cursor: pointer;
+  background: var(--pastel-lavender); color: var(--pastel-lavender-fg);
+  border: 0; box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--pastel-lavender-fg) 30%, transparent), 0 1px 3px #0000001a;
+  transition: transform .12s ease, opacity .2s ease, background-color .2s ease;
+}
+.drops-plus svg { width: 22px; height: 22px; stroke-width: 2.5; }
+.drops-plus:active:not(:disabled) { transform: scale(.95); }
+.drops-plus:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.drops-plus:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.drops-row[data-done=true] .drops-label {
+  color: var(--muted-foreground);
+  text-decoration: line-through 2px currentColor;
+}
+@media (prefers-reduced-motion: reduce) { .drops-plus { transition: none; } }
