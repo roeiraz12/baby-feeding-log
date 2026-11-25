@@ -3,3 +3,6 @@ CONTRACT.md
 dev-server.mjs
 .env.local
 node_modules
+docs
+README.md
+LICENSE
