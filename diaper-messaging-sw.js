@@ -10,7 +10,7 @@
 //  - /api/ and other origins: never cached.
 // Bump CACHE_VERSION when APP_SHELL changes; old caches are deleted on activate.
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const CACHE = `baby-journal-${CACHE_VERSION}`;
 const FONT_CACHE = "baby-journal-fonts-v1";
 const OWN_CACHES = [CACHE, FONT_CACHE];

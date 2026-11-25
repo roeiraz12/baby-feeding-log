@@ -6,7 +6,9 @@ import {
   shabbatWindow, isShabbat, dayKey, trackedHours,
   diaperWarnings as goalWarnings, DEFAULT_GOALS, mergeData,
   EVENING_NOTIFY_HOUR, WARNING_FROM_HOUR,
-  hoursPhrase, feedOverdueText as overdueTextFor
+  hoursPhrase, feedOverdueText as overdueTextFor,
+  FEEDING_GAP_MS, feedings, lastFeedingStart, nextFeedAt as nextFeedAtFor,
+  dailyStats, predictFeeds, medianIntervalMin, diaperCounts, meetsDiaperGoals
 } from '../shared/rules.js';
 
 const App = (window.App = window.App || {});
@@ -115,36 +117,12 @@ App.feedOverdueText = feedOverdueText;
 /* ------------------------------------------------------------------ */
 /* Feedings (user rule): sides nursed one after the other count as ONE feeding
    when the next side starts within FEEDING_GAP of the previous side's end.
-   A single side is also a feeding. A feeding's time is the start of its first side. */
-const FEEDING_GAP = (App.FEEDING_GAP = 30 * MINUTE);
-function feedings(events) {
-  const nursing = events.filter(function (e) { return e.type === 'nursing'; })
-    .slice().sort(function (a, b) { return a.timestamp - b.timestamp; });
-  const out = [];
-  let current = null;
-  nursing.forEach(function (e) {
-    const end = Math.max(e.timestamp, e.endTimestamp != null ? e.endTimestamp : e.timestamp + (e.durationMs || 0));
-    if (current && e.timestamp - current.end <= FEEDING_GAP) {
-      current.end = Math.max(current.end, end);
-      current.events.push(e);
-    } else {
-      current = { start: e.timestamp, end: end, events: [e] };
-      out.push(current);
-    }
-  });
-  return out;
-}
-/** Start time of the latest feeding, or 0. */
-function lastFeedingStart(events) {
-  const f = feedings(events);
-  return f.length ? f[f.length - 1].start : 0;
-}
-/** When the feed alarm is due: last feeding + interval, pushed back by a snooze; null if none or dismissed. */
+   A single side is also a feeding. A feeding's time is the start of its first side.
+   The pure helpers live in ../shared/rules.js (unit-tested in test/). */
+const FEEDING_GAP = (App.FEEDING_GAP = FEEDING_GAP_MS);
+/** When the feed alarm is due: last feeding + the configured interval, pushed back by a snooze; null if none or dismissed. */
 function nextFeedAt(events, snoozeUntil, dismissedFeedStart) {
-  const last = lastFeedingStart(events);
-  if (!last || dismissedFeedStart === last) return null;
-  const due = last + feedIntervalMs();
-  return snoozeUntil && snoozeUntil > due ? snoozeUntil : due;
+  return nextFeedAtFor(events, feedIntervalMs(), snoozeUntil, dismissedFeedStart);
 }
 function newId() { return Date.now() + '-' + Math.floor(Math.random() * 1e6); }
 /** "12 דק'" / "1 ש' 5 דק'" */
@@ -165,81 +143,8 @@ function eventLabel(e) {
   if (e.type === 'diaper') return 'חיתול — ' + (e.subtype === 'wet' ? 'פיפי' : 'קקי');
   return 'שינה — ' + fmtDuration(e.durationMs != null ? e.durationMs : 0);
 }
-/** Per-day counts and averages (days partly inside Shabbat are weighted by their tracked hours). */
-function dailyStats(events) {
-  const byDay = new Map();
-  const bucket = function (key) { return byDay.get(key) || { nursing: 0, wet: 0, dirty: 0 }; };
-  events.forEach(function (e) {
-    if (e.type !== 'diaper') return;
-    const key = dayKey(e.timestamp), c = bucket(key);
-    if (e.subtype === 'wet') c.wet += 1; else c.dirty += 1;
-    byDay.set(key, c);
-  });
-  feedings(events).forEach(function (f) {
-    const key = dayKey(f.start), c = bucket(key);
-    c.nursing += 1;
-    byDay.set(key, c);
-  });
-  const days = Array.from(byDay.entries()).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; }).map(function (entry) {
-    const key = entry[0], c = entry[1], hours = trackedHours(key);
-    return {
-      key: key, hours: hours, partial: hours < 24,
-      label: new Date(key + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short' }),
-      nursing: c.nursing, wet: c.wet, dirty: c.dirty
-    };
-  });
-  const dayEquivalents = Math.max(1, days.reduce(function (s, d) { return s + d.hours; }, 0) / 24);
-  const sum = function (pick) { return days.reduce(function (s, d) { return s + pick(d); }, 0); };
-  const round1 = function (x) { return Math.round(x * 10) / 10; };
-  return {
-    days: days.length,
-    avgWet: round1(sum(function (d) { return d.wet; }) / dayEquivalents),
-    avgDirty: round1(sum(function (d) { return d.dirty; }) / dayEquivalents),
-    avgNursing: round1(sum(function (d) { return d.nursing; }) / dayEquivalents),
-    leftCount: events.filter(function (e) { return e.type === 'nursing' && e.subtype === 'left'; }).length,
-    rightCount: events.filter(function (e) { return e.type === 'nursing' && e.subtype === 'right'; }).length,
-    daily: days.slice(-7).map(function (d) { return Object.assign({}, d, { label: d.partial ? d.label + '*' : d.label }); })
-  };
-}
-/** Feeding start times and the plausible gaps between them (10 min – 8 h). */
-function feedingIntervals(events) {
-  const starts = feedings(events).map(function (f) { return f.start; });
-  const gaps = [];
-  for (let k = 1; k < starts.length; k++) {
-    const d = starts[k] - starts[k - 1];
-    if (d > 6e5 && d < 288e5) gaps.push(d);
-  }
-  return { starts: starts, gaps: gaps };
-}
-/** Next `count` predicted feeding times after `now`, spaced by the median gap ([] with too little data). */
-function predictFeeds(events, now, count) {
-  if (now === undefined) now = Date.now();
-  if (count === undefined) count = 4;
-  const x = feedingIntervals(events), starts = x.starts, gaps = x.gaps;
-  if (starts.length < 4 || gaps.length < 3) return [];
-  gaps.sort(function (a, b) { return a - b; });
-  const median = gaps[Math.floor(gaps.length / 2)], out = [];
-  let next = starts[starts.length - 1] + median;
-  while (next <= now) next += median;
-  for (let k = 0; k < count; k++) { out.push(next); next += median; }
-  return out;
-}
-function medianIntervalMin(events) {
-  const gaps = feedingIntervals(events).gaps;
-  if (gaps.length < 3) return null;
-  gaps.sort(function (a, b) { return a - b; });
-  return Math.round(gaps[Math.floor(gaps.length / 2)] / MINUTE);
-}
 function isToday(key, now) { return key === dayKey(now === undefined ? Date.now() : now); }
 function vitaminEvent(ts) { return { id: 'vitamin-d-' + dayKey(ts), type: 'custom', subtype: 'custom', timestamp: ts, note: VITAMIN_NOTE }; }
-function diaperCounts(events, now) {
-  const today = dayKey(now === undefined ? Date.now() : now);
-  const diapers = events.filter(function (e) { return e.type === 'diaper' && dayKey(e.timestamp) === today; });
-  return {
-    wet: diapers.filter(function (e) { return e.subtype === 'wet'; }).length,
-    dirty: diapers.filter(function (e) { return e.subtype === 'dirty'; }).length
-  };
-}
 /** Today's diaper goal warnings (configured goals); none on Shabbat. */
 function diaperWarnings(events, now) {
   if (now === undefined) now = Date.now();
@@ -261,6 +166,7 @@ App.timeHM = function (ts) { return new Date(ts).toLocaleTimeString('he-IL', { h
 App.lastNursing = lastFeedingStart;
 App.nextFeedAt = nextFeedAt;
 App.diaperCounts = diaperCounts;
+App.meetsDiaperGoals = function (wet, dirty) { return meetsDiaperGoals(wet, dirty, goals()); };
 App.diaperWarnings = diaperWarnings;
 App.eveningWarnings = eveningWarnings;
 App.dailyStats = dailyStats;

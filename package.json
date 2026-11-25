@@ -5,6 +5,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "dev": "node dev-server.mjs",
+    "test": "node --test",
     "vapid": "web-push generate-vapid-keys"
   },
   "dependencies": {
